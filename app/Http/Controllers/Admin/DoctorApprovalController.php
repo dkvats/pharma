@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\MR\Doctor;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class DoctorApprovalController extends Controller
@@ -81,6 +82,11 @@ class DoctorApprovalController extends Controller
             "Doctor '{$doctor->name}' ({$doctor->doctor_code}) approved by " . auth()->user()->name
         );
         
+        // Send approval notification
+        if ($doctor->user) {
+            NotificationService::sendDoctorApproval($doctor->user, 'approved');
+        }
+        
         return redirect()->route('admin.doctors.approval.index')
             ->with('success', "Doctor '{$doctor->name}' has been approved and can now receive referrals.");
     }
@@ -119,6 +125,11 @@ class DoctorApprovalController extends Controller
             $doctor->id,
             "Doctor '{$doctor->name}' ({$doctor->doctor_code}) rejected by " . auth()->user()->name
         );
+        
+        // Send rejection notification
+        if ($doctor->user) {
+            NotificationService::sendDoctorApproval($doctor->user, 'rejected', $validated['rejection_reason']);
+        }
         
         return redirect()->route('admin.doctors.approval.index')
             ->with('success', "Doctor '{$doctor->name}' has been rejected.");

@@ -55,9 +55,13 @@
     <!-- Reports Section -->
     <div class="pt-4">
         <p class="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Reports</p>
-        <a href="{{ route('doctor.reports.performance') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('doctor.reports.*') ? 'bg-slate-700 text-white' : '' }}">
+        <a href="{{ route('doctor.reports.performance') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('doctor.reports.performance') ? 'bg-slate-700 text-white' : '' }}">
             <i class="fas fa-chart-line w-5 text-center"></i>
             <span>My Performance</span>
+        </a>
+        <a href="{{ route('doctor.reports.referral-sales') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('doctor.reports.referral-sales') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-store w-5 text-center"></i>
+            <span>My Referral Sales</span>
         </a>
     </div>
 

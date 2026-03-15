@@ -36,17 +36,43 @@
                     @enderror
                 </div>
 
-                <div class="grid grid-cols-3 gap-4 mb-4">
+                <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Price ($) *</label>
-                        <input type="number" id="price" name="price" value="{{ old('price', $product->price) }}" step="0.01" min="0" required
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('price') border-red-500 @enderror">
-                        @error('price')
+                        <label for="mrp" class="block text-sm font-medium text-gray-700 mb-1">MRP (₹) *</label>
+                        <input type="number" id="mrp" name="mrp" value="{{ old('mrp', $product->mrp) }}" step="0.01" min="0" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('mrp') border-red-500 @enderror"
+                            placeholder="Maximum Retail Price">
+                        @error('mrp')
                             <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                         @enderror
                     </div>
                     <div>
-                        <label for="commission" class="block text-sm font-medium text-gray-700 mb-1">Commission ($) *</label>
+                        <label for="discount_amount" class="block text-sm font-medium text-gray-700 mb-1">Discount (₹) *</label>
+                        <input type="number" id="discount_amount" name="discount_amount" value="{{ old('discount_amount', $product->discount_amount) }}" step="0.01" min="0" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('discount_amount') border-red-500 @enderror"
+                            placeholder="Discount Amount">
+                        @error('discount_amount')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label for="price" class="block text-sm font-medium text-gray-700 mb-1">
+                            Final Price (₹) *
+                            <span id="price-auto-badge" class="ml-1 text-xs font-normal text-green-600 bg-green-50 border border-green-200 rounded px-1.5 py-0.5 hidden">Auto-calculated</span>
+                        </label>
+                        <input type="number" id="price" name="price" value="{{ old('price', $product->price) }}" step="0.01" min="0" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 @error('price') border-red-500 @enderror"
+                            placeholder="Selling Price (MRP - Discount)">
+                        @error('price')
+                            <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                        @enderror
+                        <p class="text-xs text-gray-400 mt-1">Auto-filled as MRP − Discount. You can override manually.</p>
+                    </div>
+                    <div>
+                        <label for="commission" class="block text-sm font-medium text-gray-700 mb-1">Commission (₹) *</label>
                         <input type="number" id="commission" name="commission" value="{{ old('commission', $product->commission) }}" step="0.01" min="0" required
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('commission') border-red-500 @enderror">
                         @error('commission')
@@ -139,4 +165,29 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    var mrpInput      = document.getElementById('mrp');
+    var discountInput = document.getElementById('discount_amount');
+    var priceInput    = document.getElementById('price');
+    var autoBadge     = document.getElementById('price-auto-badge');
+
+    function calcPrice() {
+        var mrp      = parseFloat(mrpInput.value)      || 0;
+        var discount = parseFloat(discountInput.value) || 0;
+        var computed = Math.max(0, mrp - discount);
+        priceInput.value = computed.toFixed(2);
+        autoBadge.classList.remove('hidden');
+    }
+
+    mrpInput.addEventListener('input', calcPrice);
+    discountInput.addEventListener('input', calcPrice);
+
+    // Let admin override price manually — hide badge while typing in price
+    priceInput.addEventListener('input', function () {
+        autoBadge.classList.add('hidden');
+    });
+})();
+</script>
 @endsection

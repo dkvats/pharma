@@ -56,6 +56,16 @@ class RolesAndPermissionsSeeder extends Seeder
             // Spin
             'spin_wheel',
             'view_targets',
+            
+            // Super Admin - CMS & System
+            'manage_system_settings',
+            'manage_modules',
+            'manage_cms_pages',
+            'manage_ui_settings',
+            'manage_dashboard_widgets',
+            'manage_notification_templates',
+            'manage_feature_flags',
+            'manage_admins',
         ];
 
         foreach ($permissions as $permission) {
@@ -64,6 +74,10 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Create Roles and assign permissions
         
+        // Super Admin Role - Full System Access
+        $superAdminRole = Role::create(['name' => 'Super Admin']);
+        $superAdminRole->givePermissionTo(Permission::all());
+
         // Admin Role
         $adminRole = Role::create(['name' => 'Admin']);
         $adminRole->givePermissionTo(Permission::all());
@@ -114,6 +128,18 @@ class RolesAndPermissionsSeeder extends Seeder
             'address' => 'Admin Office',
         ]);
         $admin->assignRole('Admin');
+
+        // Create Super Admin User
+        $superAdmin = User::create([
+            'name' => 'Super Admin',
+            'email' => 'superadmin@pharma.com',
+            'password' => Hash::make('password'),
+            'code' => 'SUP-' . strtoupper(Str::random(6)),
+            'status' => 'active',
+            'phone' => '1234567800',
+            'address' => 'System Headquarters',
+        ]);
+        $superAdmin->assignRole('Super Admin');
 
         // Create Sub Admin User
         $subAdmin = User::create([
@@ -166,6 +192,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $this->command->info('Roles, permissions, and default users created successfully!');
         $this->command->info('');
         $this->command->info('Default Login Credentials:');
+        $this->command->info('Super Admin: superadmin@pharma.com / password');
         $this->command->info('Admin: admin@pharma.com / password');
         $this->command->info('Sub Admin: subadmin@pharma.com / password');
         $this->command->info('Doctor: doctor@pharma.com / password');

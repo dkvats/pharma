@@ -45,12 +45,19 @@
                                 {{ $order->status == 'pending' ? 'bg-yellow-100 text-yellow-800' : '' }}
                                 {{ $order->status == 'approved' ? 'bg-blue-100 text-blue-800' : '' }}
                                 {{ $order->status == 'rejected' ? 'bg-red-100 text-red-800' : '' }}
-                                {{ $order->status == 'delivered' ? 'bg-green-100 text-green-800' : '' }}">
+                                {{ $order->status == 'delivered' ? 'bg-green-100 text-green-800' : '' }}
+                                {{ $order->status == 'cancelled' ? 'bg-gray-100 text-gray-800' : '' }}">
                                 {{ $order->status_label }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <a href="{{ route('orders.show', $order) }}" class="text-blue-600 hover:text-blue-900">View Details</a>
+                            @if(auth()->user()->hasRole('End User') && $order->status === 'pending' && $order->user_id === auth()->id())
+                                <form action="{{ route('orders.cancel', $order) }}" method="POST" class="inline ml-2" onsubmit="return confirm('Cancel this order?');">
+                                    @csrf
+                                    <button type="submit" class="text-red-600 hover:text-red-900">Cancel</button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty

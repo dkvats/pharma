@@ -58,7 +58,9 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', 'max:255'],
+            'mrp' => ['required', 'numeric', 'min:0'],
             'price' => ['required', 'numeric', 'min:0'],
+            'discount_amount' => ['required', 'numeric', 'min:0'],
             'commission' => ['required', 'numeric', 'min:0'],
             'stock' => ['required', 'integer', 'min:0'],
             'requires_prescription' => ['boolean'],
@@ -71,7 +73,9 @@ class ProductController extends Controller
         $data = [
             'name' => $validated['name'],
             'category' => $validated['category'],
+            'mrp' => $validated['mrp'],
             'price' => $validated['price'],
+            'discount_amount' => $validated['discount_amount'],
             'commission' => $validated['commission'],
             'stock' => $validated['stock'],
             'requires_prescription' => $validated['requires_prescription'] ?? false,
@@ -113,7 +117,9 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', 'max:255'],
+            'mrp' => ['required', 'numeric', 'min:0'],
             'price' => ['required', 'numeric', 'min:0'],
+            'discount_amount' => ['required', 'numeric', 'min:0'],
             'commission' => ['required', 'numeric', 'min:0'],
             'stock' => ['required', 'integer', 'min:0'],
             'is_special_spin_product' => ['boolean'],

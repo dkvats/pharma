@@ -78,10 +78,33 @@
             @endforeach
         </tbody>
         <tfoot>
-            <tr class="total-row">
-                <td colspan="3" class="text-right">Total Amount:</td>
-                <td class="text-right">&#8377;{{ number_format($order->total_amount, 2) }}</td>
+            @php
+                // Calculate subtotal (total + discount if discount was applied)
+                $subtotal = $order->total_amount + ($order->discount_amount ?? 0);
+            @endphp
+            <tr>
+                <td colspan="3" class="text-right">Subtotal:</td>
+                <td class="text-right">&#8377;{{ number_format($subtotal, 2) }}</td>
             </tr>
+            @if($order->discount_amount > 0)
+            <tr>
+                <td colspan="3" class="text-right" style="color: #059669;">
+                    Discount @if($order->offer)({{ $order->offer->title }})@endif:
+                </td>
+                <td class="text-right" style="color: #059669;">-&#8377;{{ number_format($order->discount_amount, 2) }}</td>
+            </tr>
+            @endif
+            <tr class="total-row" style="border-top: 2px solid #333;">
+                <td colspan="3" class="text-right" style="font-size: 14px;">Total Payable:</td>
+                <td class="text-right" style="font-size: 14px;">&#8377;{{ number_format($order->total_amount, 2) }}</td>
+            </tr>
+            @if($order->discount_amount > 0)
+            <tr>
+                <td colspan="4" class="text-center" style="color: #059669; font-weight: bold; padding-top: 10px;">
+                    You Saved &#8377;{{ number_format($order->discount_amount, 2) }} on this order!
+                </td>
+            </tr>
+            @endif
         </tfoot>
     </table>
 

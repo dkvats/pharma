@@ -19,40 +19,40 @@ class GrandSpinService
     }
 
     /**
-     * Check if doctor has completed required consecutive months
+     * Check if doctor has completed required consecutive months.
+     *
+     * Uses integer year + integer month (1-12) from the doctor_targets table.
+     * Consecutive check: each record must be exactly one calendar month after the previous.
      */
     public function hasCompletedConsecutiveMonths($doctorId): bool
     {
         $requiredMonths = $this->getRequiredMonths();
-        
-        // Get last N completed months, ordered by month descending
-        $completedMonths = DoctorTarget::where('doctor_id', $doctorId)
+
+        // Fetch the last N completed month records ordered newest first.
+        // Select both year and month (both are integers) to allow cross-year checks.
+        $records = DoctorTarget::where('doctor_id', $doctorId)
             ->where('is_completed', true)
+            ->orderByDesc('year')
             ->orderByDesc('month')
             ->take($requiredMonths)
-            ->pluck('month')
-            ->toArray();
+            ->get(['year', 'month']);
 
-        // Check if we have enough months
-        if (count($completedMonths) < $requiredMonths) {
+        // Check if we have enough completed months
+        if ($records->count() < $requiredMonths) {
             return false;
         }
 
-        // Check if months are consecutive
-        // Convert month strings (YYYY-MM) to timestamps for comparison
-        $timestamps = array_map(function ($month) {
-            return strtotime($month . '-01');
-        }, $completedMonths);
+        // Build a sorted ascending list of Carbon dates (first day of each month)
+        // using integer year and integer month — no string parsing required.
+        $dates = $records
+            ->map(fn ($r) => \Carbon\Carbon::create((int) $r->year, (int) $r->month, 1))
+            ->sortBy(fn ($d) => $d->timestamp)
+            ->values();
 
-        sort($timestamps); // Sort ascending to check consecutive
-
-        for ($i = 1; $i < count($timestamps); $i++) {
-            $prevMonth = date('Y-m', $timestamps[$i - 1]);
-            $currMonth = date('Y-m', $timestamps[$i]);
-            
-            // Check if current month is exactly 1 month after previous
-            $expectedMonth = date('Y-m', strtotime($prevMonth . '-01 +1 month'));
-            if ($currMonth !== $expectedMonth) {
+        // Verify every adjacent pair is exactly one calendar month apart
+        for ($i = 1; $i < $dates->count(); $i++) {
+            $expected = $dates[$i - 1]->copy()->addMonthNoOverflow();
+            if (!$dates[$i]->isSameMonth($expected)) {
                 return false;
             }
         }
@@ -169,12 +169,17 @@ class GrandSpinService
     }
 
     /**
-     * Mark doctor target as completed when spin is used
-     * Call this from DoctorTargetService when spin is awarded
+     * Mark a specific doctor target month as completed.
+     * Call this from DoctorTargetService when a monthly spin is awarded.
+     *
+     * @param int $doctorId
+     * @param int $year  Integer year (e.g. 2026)
+     * @param int $month Integer month 1-12 (e.g. 3 for March)
      */
-    public function markTargetCompleted($doctorId, $month): void
+    public function markTargetCompleted($doctorId, int $year, int $month): void
     {
         DoctorTarget::where('doctor_id', $doctorId)
+            ->where('year', $year)
             ->where('month', $month)
             ->update(['is_completed' => true]);
 

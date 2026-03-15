@@ -51,7 +51,8 @@ class AuthController extends Controller
             // Log login activity
             ActivityLogService::logLogin();
 
-            return redirect()->intended($this->getDashboardRoute());
+            // Use direct redirect instead of intended() to ensure correct dashboard
+            return redirect($this->getDashboardRoute());
         }
 
         return back()->withErrors([
@@ -75,7 +76,7 @@ class AuthController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'string', 'max:20', 'unique:users'],
             'address' => ['nullable', 'string'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
@@ -124,7 +125,10 @@ class AuthController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->hasRole('Admin')) {
+        // Super Admin must be checked FIRST - has platform control panel
+        if ($user->hasRole('Super Admin')) {
+            return route('super-admin.dashboard');
+        } elseif ($user->hasRole('Admin')) {
             return route('admin.dashboard');
         } elseif ($user->hasRole('Doctor')) {
             return route('doctor.dashboard');

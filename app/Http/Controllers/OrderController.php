@@ -7,9 +7,12 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\UserOfferUsage;
 use App\Services\ActivityLogService;
 use App\Services\DoctorTargetService;
+use App\Services\NotificationService;
 use App\Services\SaleClassificationService;
+use App\Services\SystemSettingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -52,9 +55,18 @@ class OrderController extends Controller
         $doctors = User::role('Doctor')->where('status', 'active')->get();
         $stores = User::role('Store')->where('status', 'active')->get();
 
-        // Get active offers for discount display
-        $dailyOffer = Offer::active()->where('offer_type', 'daily')->first();
-        $ongoingOffers = Offer::active()->where('offer_type', 'ongoing')->get();
+        // Get active offers for discount display (role-based)
+        $user = auth()->user();
+        $dailyOffer = null;
+        $ongoingOffers = collect();
+        
+        if ($user->hasRole('End User')) {
+            $dailyOffer = Offer::active()->forUsers()->where('offer_type', 'daily')->first();
+            $ongoingOffers = Offer::active()->forUsers()->where('offer_type', 'ongoing')->get();
+        } elseif ($user->hasRole('Store')) {
+            $dailyOffer = Offer::active()->forStores()->where('offer_type', 'daily')->first();
+            $ongoingOffers = Offer::active()->forStores()->where('offer_type', 'ongoing')->get();
+        }
 
         return view('orders.create', compact('products', 'doctors', 'stores', 'cartItems', 'fromCart', 'dailyOffer', 'ongoingOffers'));
     }
@@ -95,6 +107,7 @@ class OrderController extends Controller
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'referral_code' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
+            'offer_id' => ['nullable', 'integer', 'exists:offers,id'],
             'prescription' => [$canUploadPrescription || $isDoctor ? 'nullable' : 'prohibited', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
         ]);
 
@@ -113,7 +126,6 @@ class OrderController extends Controller
 
         return DB::transaction(function () use ($request, $validated, $user, $canUploadPrescription) {
             $user = auth()->user();
-            $totalAmount = 0;
             $totalCommission = 0;
 
             // CRITICAL: Sort product IDs to prevent deadlock (consistent locking order)
@@ -131,6 +143,7 @@ class OrderController extends Controller
             
             // Calculate totals and validate stock + prescription requirements
             $prescriptionRequired = false;
+            $subtotal = 0; // Track subtotal before discount
             
             foreach ($validated['items'] as $item) {
                 $productId = $item['product_id'];
@@ -153,28 +166,44 @@ class OrderController extends Controller
                     $prescriptionRequired = true;
                 }
 
-                $subtotal = $product->price * $item['quantity'];
+                $itemSubtotal = $product->price * $item['quantity'];
                 $commission = $product->commission * $item['quantity'];
-                $totalAmount += $subtotal;
+                $subtotal += $itemSubtotal;
                 $totalCommission += $commission;
             }
 
-            // Apply offer discount if selected
+            // Apply offer discount if selected (role-based, two separate if blocks)
             $discountAmount = 0;
-            $offerId = $request->input('offer_id');
-            if ($offerId) {
-                $offer = Offer::active()->find($offerId);
-                if ($offer) {
-                    if ($offer->discount_type === 'percentage') {
-                        $discountAmount = $totalAmount * ($offer->discount_value / 100);
+            $offerId = null;
+            $appliedOffer = null;
+
+            $requestedOfferId = $validated['offer_id'] ?? null;
+
+            if ($requestedOfferId) {
+                // End User: find from user offers
+                if ($user->hasRole('End User')) {
+                    $appliedOffer = Offer::active()->forUsers()->find($requestedOfferId);
+                }
+
+                // Store: find from store offers
+                if ($user->hasRole('Store')) {
+                    $appliedOffer = Offer::active()->forStores()->find($requestedOfferId);
+                }
+
+                if ($appliedOffer && $appliedOffer->isValid()) {
+                    if ($appliedOffer->discount_type === 'percentage') {
+                        $discountAmount = $subtotal * ($appliedOffer->discount_value / 100);
                     } else {
-                        $discountAmount = $offer->discount_value;
+                        $discountAmount = $appliedOffer->discount_value;
                     }
-                    // Cap discount at total amount
-                    $discountAmount = min($discountAmount, $totalAmount);
-                    $totalAmount -= $discountAmount;
+                    // Cap discount at subtotal
+                    $discountAmount = min($discountAmount, $subtotal);
+                    $offerId = $appliedOffer->id;
                 }
             }
+
+            // Calculate final total ONCE — never reassigned after this
+            $totalAmount = $subtotal - $discountAmount;
             
             // PRESCRIPTION VALIDATION DISABLED - Users can purchase without prescription
             // Prescription upload is now optional for all users
@@ -240,6 +269,16 @@ class OrderController extends Controller
             // Determine sale type BEFORE creating order (for immutability)
             $saleType = $this->determineSaleType($user, $doctorId, $storeId, $referralCode);
 
+            // Check for auto-approve setting from CMS
+            $initialStatus = 'pending';
+            $autoApprove = SystemSettingService::get('order_auto_approve', false);
+            
+            // Auto-approve if enabled AND no prescription required
+            // Orders with prescriptions still need manual review
+            if ($autoApprove && !$prescriptionRequired) {
+                $initialStatus = 'approved';
+            }
+
             // Create order with LOCKED prescription requirement and IMMUTABLE sale_type
             $order = Order::create([
                 'order_number' => 'ORD-' . strtoupper(Str::random(8)),
@@ -247,7 +286,7 @@ class OrderController extends Controller
                 'doctor_id' => $doctorId,
                 'store_id' => $storeId,
                 'referral_code' => $referralCode,
-                'status' => 'pending',
+                'status' => $initialStatus,
                 'sale_type' => $saleType, // Set at creation - immutable
                 'total_amount' => $totalAmount,
                 'discount_amount' => $discountAmount,
@@ -290,6 +329,16 @@ class OrderController extends Controller
                 "Order #{$order->order_number} created by {$user->name}"
             );
 
+            // Record offer usage if offer was applied (for End Users)
+            if ($offerId && $discountAmount > 0 && $user->hasRole('End User')) {
+                UserOfferUsage::recordUsage(
+                    $user->id,
+                    $offerId,
+                    $order->id,
+                    $discountAmount
+                );
+            }
+
             // Clear cart if order was created from cart
             if ($request->has('from_cart')) {
                 $cart = $user->cart;
@@ -297,6 +346,9 @@ class OrderController extends Controller
                     $cart->items()->delete();
                 }
             }
+
+            // Send order confirmation notification
+            NotificationService::sendOrderConfirmation($order, $user);
 
             return redirect()->route('orders.show', $order)
                 ->with('success', 'Order placed successfully! Order #' . $order->order_number);
@@ -391,5 +443,56 @@ class OrderController extends Controller
 
         // Default: Company Direct Sale (End User direct order)
         return 'company_direct';
+    }
+
+    /**
+     * Cancel an order (End User only, pending orders only)
+     */
+    public function cancel(Order $order)
+    {
+        $user = auth()->user();
+
+        // Only End User can cancel their own orders
+        if (!$user->hasRole('End User')) {
+            abort(403, 'Only End Users can cancel orders.');
+        }
+
+        // Verify order belongs to user
+        if ($order->user_id !== $user->id) {
+            abort(403, 'You can only cancel your own orders.');
+        }
+
+        // Only pending orders can be cancelled
+        if ($order->status !== 'pending') {
+            return back()->with('error', 'Only pending orders can be cancelled. This order is already ' . $order->status . '.');
+        }
+
+        // Restore stock for order items
+        foreach ($order->items as $item) {
+            $product = Product::find($item->product_id);
+            if ($product) {
+                $product->increment('stock', $item->quantity);
+            }
+        }
+
+        // Update order status
+        $order->status = 'cancelled';
+        $order->save();
+
+        // Log cancellation
+        ActivityLogService::log(
+            'order_cancelled',
+            $user,
+            "Order #{$order->order_number} cancelled by user {$user->name}"
+        );
+
+        logActivity(
+            'Order Cancelled',
+            'Order',
+            $order->id,
+            "Order #{$order->order_number} cancelled by {$user->name}"
+        );
+
+        return back()->with('success', 'Order cancelled successfully. Stock has been restored.');
     }
 }

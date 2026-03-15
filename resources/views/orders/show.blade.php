@@ -31,7 +31,8 @@
                             {{ $order->status == 'pending' ? 'bg-yellow-100 text-yellow-800' : '' }}
                             {{ $order->status == 'approved' ? 'bg-blue-100 text-blue-800' : '' }}
                             {{ $order->status == 'rejected' ? 'bg-red-100 text-red-800' : '' }}
-                            {{ $order->status == 'delivered' ? 'bg-green-100 text-green-800' : '' }}">
+                            {{ $order->status == 'delivered' ? 'bg-green-100 text-green-800' : '' }}
+                            {{ $order->status == 'cancelled' ? 'bg-gray-100 text-gray-800' : '' }}">
                             {{ $order->status_label }}
                         </span>
                     </div>
@@ -41,6 +42,18 @@
                     <p class="font-semibold text-gray-800">{{ $order->sale_type_label }}</p>
                 </div>
             </div>
+            
+            <!-- Cancel Order Button - End User Only, Pending Only -->
+            @if(auth()->user()->hasRole('End User') && $order->status === 'pending' && $order->user_id === auth()->id())
+                <div class="mt-4 pt-4 border-t border-gray-200 flex justify-end">
+                    <form action="{{ route('orders.cancel', $order) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this order? This action cannot be undone.');">
+                        @csrf
+                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg">
+                            Cancel Order
+                        </button>
+                    </form>
+                </div>
+            @endif
         </div>
 
         <!-- Order Items -->
@@ -76,8 +89,23 @@
                     @endforeach
                 </tbody>
                 <tfoot class="bg-gray-50">
+                    @php
+                        $subtotal = $order->total_amount + ($order->discount_amount ?? 0);
+                    @endphp
                     <tr>
-                        <td colspan="3" class="px-6 py-4 text-right font-semibold text-gray-800">Total Amount:</td>
+                        <td colspan="3" class="px-6 py-3 text-right text-gray-600">Subtotal:</td>
+                        <td class="px-6 py-3 text-right text-gray-900">₹{{ number_format($subtotal, 2) }}</td>
+                    </tr>
+                    @if($order->discount_amount > 0)
+                    <tr>
+                        <td colspan="3" class="px-6 py-3 text-right text-green-600">
+                            Discount Applied @if($order->offer)<span class="text-xs">({{ $order->offer->title }})</span>@endif:
+                        </td>
+                        <td class="px-6 py-3 text-right text-green-600 font-medium">-₹{{ number_format($order->discount_amount, 2) }}</td>
+                    </tr>
+                    @endif
+                    <tr>
+                        <td colspan="3" class="px-6 py-4 text-right font-semibold text-gray-800">Total Payable:</td>
                         <td class="px-6 py-4 text-right font-bold text-gray-900">₹{{ number_format($order->total_amount, 2) }}</td>
                     </tr>
                 </tfoot>

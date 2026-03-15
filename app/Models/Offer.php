@@ -10,6 +10,7 @@ class Offer extends Model
 {
     protected $fillable = [
         'title',
+        'target_audience',
         'description',
         'offer_type',
         'discount_type',
@@ -54,6 +55,16 @@ class Offer extends Model
     public function scopeDaily($query)
     {
         return $query->where('offer_type', 'daily');
+    }
+
+    public function scopeForUsers($query)
+    {
+        return $query->where('target_audience', 'user');
+    }
+
+    public function scopeForStores($query)
+    {
+        return $query->where('target_audience', 'store');
     }
 
     public function isValid(): bool

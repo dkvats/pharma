@@ -177,10 +177,18 @@
                                     <button type="submit" class="text-red-600 hover:text-red-900 mr-3">Reject</button>
                                 </form>
                             @elseif($order->isApproved())
-                                <form action="{{ route('admin.orders.deliver', $order) }}" method="POST" class="inline">
-                                    @csrf
-                                    <button type="submit" class="text-blue-600 hover:text-blue-900 mr-3">Deliver</button>
-                                </form>
+                                @if($order->bill_generated)
+                                    <form action="{{ route('admin.orders.deliver', $order) }}" method="POST" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-blue-600 hover:text-blue-900 mr-3">Deliver</button>
+                                    </form>
+                                @else
+                                    <button type="button" disabled
+                                        title="Generate bill before delivery"
+                                        class="text-gray-400 cursor-not-allowed mr-3">
+                                        Deliver
+                                    </button>
+                                @endif
                                 @if(!$order->bill_generated)
                                     <a href="{{ route('admin.orders.generate-bill', $order) }}" class="text-purple-600 hover:text-purple-900 mr-3">Generate Bill</a>
                                 @else

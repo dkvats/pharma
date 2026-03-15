@@ -20,7 +20,7 @@ use App\Http\Controllers\MR\MRStoreController;
 |
 */
 
-Route::middleware(['auth', 'role:MR'])->prefix('mr')->name('mr.')->group(function () {
+Route::middleware(['auth', 'role:MR|Admin'])->prefix('mr')->name('mr.')->group(function () {
     
     // Dashboard
     Route::get('/dashboard', [MRDashboardController::class, 'index'])->name('dashboard');

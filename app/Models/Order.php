@@ -82,6 +82,11 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function offer()
+    {
+        return $this->belongsTo(Offer::class);
+    }
+
     public function getStatusLabelAttribute(): string
     {
         return match($this->status) {
@@ -89,6 +94,7 @@ class Order extends Model
             'approved' => 'Approved',
             'rejected' => 'Rejected',
             'delivered' => 'Delivered',
+            'cancelled' => 'Cancelled',
             default => 'Unknown',
         };
     }
@@ -117,6 +123,11 @@ class Order extends Model
     public function isDelivered(): bool
     {
         return $this->status === 'delivered';
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
     }
 
     public function getPrescriptionUrlAttribute(): ?string

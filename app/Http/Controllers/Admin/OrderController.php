@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Product;
+use App\Models\StoreCancellationRequest;
 use App\Services\ActivityLogService;
 use App\Services\DoctorTargetService;
 use App\Services\StoreStockService;
@@ -182,6 +184,11 @@ class OrderController extends Controller
             return back()->with('error', 'Order must be approved before delivery.');
         }
 
+        // Enforce: bill must be generated before delivery
+        if (!$order->bill_generated) {
+            return back()->with('error', 'Delivery not allowed. Bill has not been generated for this order.');
+        }
+
         // Prevent duplicate delivery processing
         if ($order->isDelivered()) {
             \Log::info('DELIVER BLOCKED: Order already delivered');
@@ -330,5 +337,134 @@ class OrderController extends Controller
         }
 
         return response()->download($path, 'bill-' . $order->order_number . '.pdf');
+    }
+
+    /**
+     * Display list of store cancellation requests
+     */
+    public function cancellationRequests(Request $request)
+    {
+        $query = StoreCancellationRequest::with(['order', 'store', 'reviewer']);
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by store
+        if ($request->filled('store_id')) {
+            $query->where('store_id', $request->store_id);
+        }
+
+        // Filter by date range
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        $requests = $query->latest()->paginate(15);
+        
+        // Get stores for filter dropdown
+        $stores = \App\Models\User::role('Store')->select('id', 'name')->get();
+
+        return view('admin.orders.cancellation-requests', compact('requests', 'stores'));
+    }
+
+    /**
+     * Approve a store cancellation request
+     */
+    public function approveCancellationRequest(StoreCancellationRequest $request)
+    {
+        if (!$request->isPending()) {
+            return back()->with('error', 'This request has already been reviewed.');
+        }
+
+        $order = $request->order;
+
+        // Order must be approved to be cancelled via request
+        if ($order->status !== 'approved') {
+            $request->update([
+                'status' => 'rejected',
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+            ]);
+            return back()->with('error', 'Order status has changed. Request automatically rejected.');
+        }
+
+        return DB::transaction(function () use ($request, $order) {
+            // Cancel the order
+            $order->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'cancelled_by' => auth()->id(),
+            ]);
+
+            // Restore stock for order items
+            foreach ($order->items as $item) {
+                $product = Product::find($item->product_id);
+                if ($product) {
+                    $product->increment('stock', $item->quantity);
+                }
+            }
+
+            // Update the cancellation request
+            $request->update([
+                'status' => 'approved',
+                'reviewed_by' => auth()->id(),
+                'reviewed_at' => now(),
+            ]);
+
+            // Log activity
+            ActivityLogService::log(
+                'store_cancellation_approved',
+                auth()->user(),
+                "Store cancellation request approved for order #{$order->order_number}"
+            );
+
+            logActivity(
+                'Store Cancellation Approved',
+                'StoreCancellationRequest',
+                $request->id,
+                "Cancellation request approved for order #{$order->order_number}"
+            );
+
+            return back()->with('success', 'Cancellation request approved. Order has been cancelled and stock restored.');
+        });
+    }
+
+    /**
+     * Reject a store cancellation request
+     */
+    public function rejectCancellationRequest(StoreCancellationRequest $request)
+    {
+        if (!$request->isPending()) {
+            return back()->with('error', 'This request has already been reviewed.');
+        }
+
+        $order = $request->order;
+
+        $request->update([
+            'status' => 'rejected',
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+        ]);
+
+        // Log activity
+        ActivityLogService::log(
+            'store_cancellation_rejected',
+            auth()->user(),
+            "Store cancellation request rejected for order #{$order->order_number}"
+        );
+
+        logActivity(
+            'Store Cancellation Rejected',
+            'StoreCancellationRequest',
+            $request->id,
+            "Cancellation request rejected for order #{$order->order_number}"
+        );
+
+        return back()->with('success', 'Cancellation request rejected. Order remains approved.');
     }
 }

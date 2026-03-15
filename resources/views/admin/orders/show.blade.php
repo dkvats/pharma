@@ -53,8 +53,23 @@
                         @endforeach
                     </tbody>
                     <tfoot class="bg-gray-50">
+                        @php
+                            $subtotal = $order->total_amount + ($order->discount_amount ?? 0);
+                        @endphp
                         <tr>
-                            <td colspan="4" class="px-4 py-3 text-right font-semibold text-gray-700">Total:</td>
+                            <td colspan="4" class="px-4 py-2 text-right text-gray-600">Subtotal:</td>
+                            <td class="px-4 py-2 text-right text-gray-900">₹{{ number_format($subtotal, 2) }}</td>
+                        </tr>
+                        @if($order->discount_amount > 0)
+                        <tr>
+                            <td colspan="4" class="px-4 py-2 text-right text-green-600">
+                                Discount @if($order->offer)<span class="text-xs">({{ $order->offer->title }})</span>@endif:
+                            </td>
+                            <td class="px-4 py-2 text-right text-green-600 font-medium">-₹{{ number_format($order->discount_amount, 2) }}</td>
+                        </tr>
+                        @endif
+                        <tr>
+                            <td colspan="4" class="px-4 py-3 text-right font-semibold text-gray-700">Total Payable:</td>
                             <td class="px-4 py-3 text-right font-bold text-gray-900">₹{{ number_format($order->total_amount, 2) }}</td>
                         </tr>
                     </tfoot>
@@ -143,12 +158,23 @@
                     </div>
                 @elseif($order->isApproved())
                     <div class="mt-4">
-                        <form action="{{ route('admin.orders.deliver', $order) }}" method="POST">
-                            @csrf
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+                        @if($order->bill_generated)
+                            <form action="{{ route('admin.orders.deliver', $order) }}" method="POST">
+                                @csrf
+                                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+                                    Mark as Delivered
+                                </button>
+                            </form>
+                        @else
+                            <button type="button" disabled
+                                title="Generate bill before delivery"
+                                class="w-full bg-gray-300 text-gray-500 cursor-not-allowed font-semibold py-2 px-4 rounded-lg">
                                 Mark as Delivered
                             </button>
-                        </form>
+                            <p class="text-xs text-amber-600 mt-2 text-center">
+                                Bill must be generated before delivery.
+                            </p>
+                        @endif
                     </div>
                 @endif
             </div>

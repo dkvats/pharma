@@ -61,7 +61,7 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center">
                 <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6"fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                 </div>
@@ -71,11 +71,11 @@
                 </div>
             </div>
         </div>
-
+    
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center">
                 <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6"fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
@@ -85,11 +85,11 @@
                 </div>
             </div>
         </div>
-
+    
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center">
                 <div class="p-3 rounded-full bg-green-100 text-green-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6"fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
                 </div>
@@ -99,11 +99,11 @@
                 </div>
             </div>
         </div>
-
+    
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center">
                 <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6"fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                 </div>
@@ -114,6 +114,57 @@
             </div>
         </div>
     </div>
+    
+    {{-- Role Request Status Widget --}}
+    @if($myRoleRequests->count() > 0)
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50 flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-user-tag text-indigo-600"></i>
+                    My Role Requests
+                </h2>
+                <p class="text-sm text-gray-500 mt-0.5">Track your requests for Doctor/ Store / MR roles</p>
+            </div>
+            <a href="{{ route('role-requests.create') }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
+                <i class="fas fa-plus mr-2"></i>New Request
+            </a>
+        </div>
+        <div class="divide-y divide-gray-100">
+            @foreach($myRoleRequests as $req)
+            <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center
+                        @if($req->requested_role === 'Doctor') bg-blue-100 text-blue-600
+                        @elseif($req->requested_role === 'Store') bg-purple-100 text-purple-600
+                        @else bg-orange-100 text-orange-600 @endif">
+                        <i class="fas {{ $req->role_icon }} text-lg"></i>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-900">{{ $req->requested_role }} Role</p>
+                        <p class="text-xs text-gray-500">Requested {{ $req->created_at->diffForHumans() }}</p>
+                        @if($req->admin_note)
+                        <p class="text-xs text-indigo-600 italic mt-0.5">Note: {{ Str::limit($req->admin_note, 50) }}</p>
+                        @endif
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1 rounded-full text-xs font-semibold {{ $req->status_badge_class }}">
+                        {{ ucfirst($req->status) }}
+                    </span>
+                    @if($req->isApproved())
+                    <i class="fas fa-check-circle text-green-500"></i>
+                    @elseif($req->isRejected())
+                    <i class="fas fa-times-circle text-red-500"></i>
+                    @else
+                    <i class="fas fa-clock text-yellow-500"></i>
+                    @endif
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
     <!-- Quick Actions -->
     <div class="bg-white rounded-lg shadow p-6">

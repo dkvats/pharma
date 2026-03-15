@@ -19,6 +19,27 @@ class LeaderboardController extends Controller
     }
 
     /**
+     * Calculate tier badge based on monthly product quantity sold.
+     * Used only for leaderboard display — does NOT affect lifetime DoctorTierService.
+     */
+    private function getMonthlyTier(int $totalProducts): array
+    {
+        if ($totalProducts >= 300) {
+            return ['key' => 'elite',    'name' => 'Elite',    'badge' => '💎', 'bg_class' => 'bg-purple-100 text-purple-800'];
+        }
+        if ($totalProducts >= 150) {
+            return ['key' => 'platinum', 'name' => 'Platinum', 'badge' => '🥇', 'bg_class' => 'bg-gray-100 text-gray-800'];
+        }
+        if ($totalProducts >= 75) {
+            return ['key' => 'gold',     'name' => 'Gold',     'badge' => '🥈', 'bg_class' => 'bg-yellow-100 text-yellow-800'];
+        }
+        if ($totalProducts >= 30) {
+            return ['key' => 'silver',   'name' => 'Silver',   'badge' => '🥉', 'bg_class' => 'bg-gray-100 text-gray-600'];
+        }
+        return     ['key' => 'bronze',   'name' => 'Bronze',   'badge' => '🏅', 'bg_class' => 'bg-orange-100 text-orange-800'];
+    }
+
+    /**
      * Display monthly leaderboard
      */
     public function monthly(Request $request)
@@ -56,13 +77,13 @@ class LeaderboardController extends Controller
         // Load doctor relationships
         $doctorIds = $rankings->pluck('doctor_id')->toArray();
         $doctors = User::whereIn('id', $doctorIds)->get(['id', 'name', 'unique_code'])->keyBy('id');
-        $tiers = $this->tierService->getTiersForDoctors($doctorIds);
 
-        // Add rank, tier and doctor to each item
+        // Add rank, monthly-tier and doctor to each item
+        // Tier is based on monthly total_products, NOT lifetime orders (DoctorTierService not used here)
         $startRank = ($rankings->currentPage() - 1) * $rankings->perPage() + 1;
         foreach ($rankings as $index => $ranking) {
-            $ranking->rank = $startRank + $index;
-            $ranking->tier = $tiers[$ranking->doctor_id] ?? null;
+            $ranking->rank  = $startRank + $index;
+            $ranking->tier  = $this->getMonthlyTier((int) $ranking->total_products);
             $ranking->doctor = $doctors[$ranking->doctor_id] ?? null;
         }
 

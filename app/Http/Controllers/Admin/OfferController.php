@@ -5,12 +5,19 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Offer;
 use App\Models\Product;
+use App\Services\SystemSettingService;
 use Illuminate\Http\Request;
 
 class OfferController extends Controller
 {
     public function index()
     {
+        // Check if offers system is enabled
+        if (!SystemSettingService::isOffersEnabled()) {
+            return redirect()->route('admin.dashboard')
+                ->with('warning', 'Offers system is currently disabled by Super Admin. You can still manage offers, but they won\'t be visible to users.');
+        }
+
         $offers = Offer::with('products', 'creator')->latest()->paginate(15);
         return view('admin.offers.index', compact('offers'));
     }
@@ -25,6 +32,7 @@ class OfferController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'target_audience' => 'required|in:user,store',
             'description' => 'nullable|string',
             'offer_type' => 'required|in:daily,ongoing',
             'discount_type' => 'required|in:percentage,fixed_amount',
@@ -64,6 +72,7 @@ class OfferController extends Controller
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
+            'target_audience' => 'required|in:user,store',
             'description' => 'nullable|string',
             'offer_type' => 'required|in:daily,ongoing',
             'discount_type' => 'required|in:percentage,fixed_amount',

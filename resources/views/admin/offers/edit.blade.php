@@ -43,6 +43,19 @@
             </div>
 
             <div class="mb-4">
+                <label for="target_audience" class="block text-sm font-medium text-gray-700 mb-1">Target Audience *</label>
+                <select id="target_audience" name="target_audience" required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('target_audience') border-red-500 @enderror">
+                    <option value="user" {{ old('target_audience', $offer->target_audience) == 'user' ? 'selected' : '' }}>End User</option>
+                    <option value="store" {{ old('target_audience', $offer->target_audience) == 'store' ? 'selected' : '' }}>Store</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">Select who can see and use this offer</p>
+                @error('target_audience')
+                    <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-4">
                 <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea id="description" name="description" rows="3"
                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">{{ old('description', $offer->description) }}</textarea>

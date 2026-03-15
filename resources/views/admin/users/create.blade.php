@@ -45,13 +45,15 @@
 
                 <div class="mb-4">
                     <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                    <select id="role" name="role" required onchange="toggleMRFields(this.value)"
+                    <select id="role" name="role" required
                         class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 @error('role') border-red-500 @enderror">
                         <option value="">Select Role</option>
                         @foreach($roles as $role)
-                            <option value="{{ $role->name }}" {{ old('role') == $role->name ? 'selected' : '' }}>
-                                {{ $role->name }}
-                            </option>
+                            @if($role->name !== 'Store')
+                                <option value="{{ $role->name }}" {{ old('role') == $role->name ? 'selected' : '' }}>
+                                    {{ $role->name }}
+                                </option>
+                            @endif
                         @endforeach
                     </select>
                     @error('role')
@@ -60,7 +62,7 @@
                 </div>
 
                 <!-- MR-specific fields (hidden by default) -->
-                <div id="mr-fields" class="mb-4 p-4 bg-blue-50 rounded-lg {{ old('role') == 'MR' ? '' : 'hidden' }}">
+                <div id="mr-fields" style="display:none" class="mb-4 p-4 bg-blue-50 rounded-lg">
                     <h4 class="text-sm font-medium text-blue-800 mb-3">MR Details</h4>
                     
                     <div class="mb-3">
@@ -123,15 +125,20 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
-function toggleMRFields(role) {
+// ─── MR fields toggle ─────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    const roleSelect = document.getElementById('role');
     const mrFields = document.getElementById('mr-fields');
-    if (role === 'MR') {
-        mrFields.classList.remove('hidden');
-    } else {
-        mrFields.classList.add('hidden');
+
+    function toggleMRFields() {
+        const role = roleSelect.value;
+        mrFields.style.display = (role === 'MR') ? 'block' : 'none';
     }
-}
+
+    roleSelect.addEventListener('change', toggleMRFields);
+    toggleMRFields();
+});
 </script>
-@endsection
+@endpush

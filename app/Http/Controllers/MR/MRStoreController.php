@@ -45,21 +45,24 @@ class MRStoreController extends Controller
         $validated = $request->validate([
             'store_name' => 'required|string|max:255',
             'owner_name' => 'required|string|max:255',
-            'phone' => 'required|string|max:20',
-            'email' => 'nullable|email|max:255',
-            'address' => 'required|string',
-            'pincode' => 'required|string|size:6',
-            'state_id' => 'required|exists:mr_states,id',
-            'district_id' => 'required|exists:mr_districts,id',
-            'city_id' => 'required|exists:mr_cities,id',
-            'area_id' => 'required|exists:mr_areas,id',
+            'phone'      => 'required|string|max:20|unique:users,phone',
+            'email'      => 'nullable|email|max:255|unique:users,email',
+            'address'    => 'required|string',
+            'pincode'    => 'required|string|size:6',
+            'state_id'   => 'required|exists:mr_states,id',
+            'district_id'=> 'required|exists:mr_districts,id',
+            'city_id'    => 'required|exists:mr_cities,id',
+            'area_id'    => 'required|exists:mr_areas,id',
+        ], [
+            'phone.unique' => 'This phone number is already registered. Please use a different phone number.',
+            'email.unique' => 'This email address is already registered. Please use a different email address.',
         ]);
 
         // Get territory names for display
-        $state = State::find($validated['state_id']);
+        $state    = State::find($validated['state_id']);
         $district = District::find($validated['district_id']);
-        $city = City::find($validated['city_id']);
-        $area = Area::find($validated['area_id']);
+        $city     = City::find($validated['city_id']);
+        $area     = Area::find($validated['area_id']);
 
         // Generate unique store code
         $storeCode = 'STR-' . strtoupper(Str::random(8));
@@ -67,9 +70,17 @@ class MRStoreController extends Controller
         // Create user account for the store
         $user = $this->createStoreUser($validated, $storeCode);
 
+        // Determine mr_id: if Admin, use first MR; if MR, use self
+        $mrId = auth()->user()->hasRole('Admin')
+            ? User::role('MR')->first()->id
+            : auth()->id();
+
+        // Determine status: Admin-created stores are auto-approved
+        $status = auth()->user()->hasRole('Admin') ? 'approved' : 'pending';
+
         // Create store record
         $store = Store::create([
-            'mr_id' => auth()->id(),
+            'mr_id' => $mrId,
             'user_id' => $user->id,
             'store_name' => $validated['store_name'],
             'owner_name' => $validated['owner_name'],
@@ -86,14 +97,20 @@ class MRStoreController extends Controller
             'district' => $district?->name,
             'city' => $city?->name,
             'area' => $area?->name,
-            'status' => 'pending',
+            'status' => $status,
         ]);
 
         // Sync store_code to user's unique_code for referral matching
         $user->update(['unique_code' => $storeCode]);
 
-        // Deactivate user account until approved
-        $user->update(['status' => 'inactive']);
+        // If Admin created, activate immediately; otherwise deactivate until approval
+        $user->update(['status' => auth()->user()->hasRole('Admin') ? 'active' : 'inactive']);
+
+        // Redirect based on role
+        if (auth()->user()->hasRole('Admin')) {
+            return redirect()->route('admin.stores.approval.index')
+                ->with('success', 'Store created and approved successfully. Login account created with email: ' . $user->email);
+        }
 
         return redirect()->route('mr.stores.index')
             ->with('success', 'Store registered successfully. Awaiting admin approval. Login account created with email: ' . $user->email);
@@ -188,7 +205,14 @@ class MRStoreController extends Controller
     {
         // Generate system email if not provided
         $email = $this->generateSystemEmail($storeData, $storeCode);
-        
+
+        // Safety net: if a user with this phone already exists, return them
+        // (normally caught earlier by the unique:users,phone validation rule)
+        $existingByPhone = User::where('phone', $storeData['phone'])->first();
+        if ($existingByPhone) {
+            return $existingByPhone;
+        }
+
         // Check if user with this email already exists
         $existingUser = User::where('email', $email)->first();
         if ($existingUser) {

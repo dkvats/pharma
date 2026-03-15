@@ -18,6 +18,11 @@ class UserController extends Controller
     {
         $query = User::query();
 
+        // Exclude Super Admin users - Admin cannot manage Super Admin
+        $query->whereDoesntHave('roles', function ($q) {
+            $q->where('name', 'Super Admin');
+        });
+
         // Search functionality
         if ($request->filled('search')) {
             $search = $request->search;
@@ -39,7 +44,9 @@ class UserController extends Controller
         }
 
         $users = $query->with('roles')->latest()->paginate(10);
-        $roles = Role::all();
+        
+        // Exclude Super Admin role from the roles list
+        $roles = Role::where('name', '!=', 'Super Admin')->get();
 
         return view('admin.users.index', compact('users', 'roles'));
     }
@@ -49,7 +56,8 @@ class UserController extends Controller
      */
     public function create()
     {
-        $roles = Role::all();
+        // Exclude Super Admin role - Admin cannot create Super Admin
+        $roles = Role::where('name', '!=', 'Super Admin')->get();
         return view('admin.users.create', compact('roles'));
     }
 
@@ -110,7 +118,13 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
-        $roles = Role::all();
+        // Prevent editing Super Admin - role hierarchy protection
+        if ($user->hasRole('Super Admin')) {
+            abort(403, 'Unauthorized action. Cannot edit Super Admin.');
+        }
+
+        // Exclude Super Admin role from roles list
+        $roles = Role::where('name', '!=', 'Super Admin')->get();
         return view('admin.users.edit', compact('user', 'roles'));
     }
 
@@ -119,6 +133,11 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
+        // Prevent updating Super Admin - role hierarchy protection
+        if ($user->hasRole('Super Admin')) {
+            abort(403, 'Unauthorized action. Cannot update Super Admin.');
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email,' . $user->id],
@@ -172,6 +191,11 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
+        // Prevent deleting Super Admin - role hierarchy protection
+        if ($user->hasRole('Super Admin')) {
+            abort(403, 'Unauthorized action. Cannot delete Super Admin.');
+        }
+
         // Prevent deleting yourself
         if ($user->id === auth()->id()) {
             return back()->with('error', 'You cannot delete your own account.');
@@ -187,7 +211,13 @@ class UserController extends Controller
      */
     public function trash()
     {
-        $users = User::onlyTrashed()->with('roles')->paginate(10);
+        // Exclude Super Admin from trash view as well
+        $users = User::onlyTrashed()
+            ->whereDoesntHave('roles', function ($q) {
+                $q->where('name', 'Super Admin');
+            })
+            ->with('roles')
+            ->paginate(10);
         return view('admin.users.trash', compact('users'));
     }
 
@@ -197,6 +227,12 @@ class UserController extends Controller
     public function restore($id)
     {
         $user = User::onlyTrashed()->findOrFail($id);
+
+        // Prevent restoring Super Admin - role hierarchy protection
+        if ($user->hasRole('Super Admin')) {
+            abort(403, 'Unauthorized action. Cannot restore Super Admin.');
+        }
+
         $user->restore();
 
         return back()->with('success', 'User restored successfully.');
@@ -207,6 +243,11 @@ class UserController extends Controller
      */
     public function toggleStatus(User $user)
     {
+        // Prevent toggling Super Admin status - role hierarchy protection
+        if ($user->hasRole('Super Admin')) {
+            abort(403, 'Unauthorized action. Cannot modify Super Admin status.');
+        }
+
         // Prevent deactivating yourself
         if ($user->id === auth()->id()) {
             return back()->with('error', 'You cannot change your own status.');

@@ -10,10 +10,13 @@ class Product extends Model
         'name',
         'category',
         'price',
+        'mrp',
+        'discount_amount',
         'commission',
         'stock',
         'requires_prescription',
         'is_special_spin_product',
+        'featured_on_homepage',
         'image',
         'status',
         'description',
@@ -22,9 +25,12 @@ class Product extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'mrp' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
         'commission' => 'decimal:2',
         'requires_prescription' => 'boolean',
         'is_special_spin_product' => 'boolean',
+        'featured_on_homepage' => 'boolean',
     ];
 
     public function creator()
@@ -55,5 +61,17 @@ class Product extends Model
     public function getImageUrlAttribute(): ?string
     {
         return $this->image ? asset('storage/' . $this->image) : null;
+    }
+
+    /**
+     * Calculate discount percentage based on MRP and final price
+     */
+    public function getDiscountPercentageAttribute(): int
+    {
+        if ($this->mrp <= 0 || $this->mrp <= $this->price) {
+            return 0;
+        }
+
+        return round((($this->mrp - $this->price) / $this->mrp) * 100);
     }
 }

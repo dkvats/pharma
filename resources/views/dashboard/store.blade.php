@@ -215,6 +215,43 @@ $lowStockCount = $store ? $store->stocks()->where('quantity', '<=', 10)->count()
                 </div>
             </div>
 
+            <!-- Available Offers for Store -->
+            @if(isset($storeOffers) && $storeOffers->count())
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl shadow-card border border-blue-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-blue-900">Available Offers</h3>
+                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Store Exclusive</span>
+                </div>
+                <div class="space-y-3">
+                    @foreach($storeOffers as $offer)
+                        <div class="p-4 bg-white rounded-xl shadow-sm border border-blue-100">
+                            <div class="flex items-start justify-between">
+                                <div>
+                                    <h4 class="font-semibold text-gray-900">{{ $offer->title }}</h4>
+                                    @if($offer->description)
+                                        <p class="text-sm text-gray-600 mt-1">{{ $offer->description }}</p>
+                                    @endif
+                                </div>
+                                <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-bold">
+                                    @if($offer->discount_type == 'percentage')
+                                        {{ $offer->discount_value }}% OFF
+                                    @else
+                                        ₹{{ $offer->discount_value }} OFF
+                                    @endif
+                                </span>
+                            </div>
+                            @if($offer->start_date || $offer->end_date)
+                                <p class="text-xs text-gray-500 mt-2">
+                                    Valid: {{ $offer->start_date?->format('d M Y') ?? 'Now' }} - {{ $offer->end_date?->format('d M Y') ?? 'Ongoing' }}
+                                </p>
+                            @endif
+                        </div>
+                    @endforeach
+                </div>
+                <p class="text-xs text-blue-600 mt-3 text-center">Offers are automatically applied during checkout</p>
+            </div>
+            @endif
+
             <!-- Referral Doctors -->
             <div class="bg-white rounded-2xl shadow-card border border-gray-100 p-6">
                 <div class="flex items-center justify-between mb-4">

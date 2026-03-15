@@ -12,6 +12,10 @@
             <i class="fas fa-boxes w-5 text-center"></i>
             <span>Manage Stock</span>
         </a>
+        <a href="{{ route('store.stock-register') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('store.stock-register') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-book w-5 text-center"></i>
+            <span>Stock Register</span>
+        </a>
     </div>
 
     <!-- Sales Section -->
@@ -20,6 +24,10 @@
         <a href="{{ route('store.stock.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('store.sales.*') ? 'bg-slate-700 text-white' : '' }}">
             <i class="fas fa-cash-register w-5 text-center"></i>
             <span>Record Sale</span>
+        </a>
+        <a href="{{ route('store.bulk-sale.form') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('store.bulk-sale.*') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-layer-group w-5 text-center"></i>
+            <span>Bulk Sale Entry</span>
         </a>
     </div>
 
@@ -33,6 +41,15 @@
         <a href="{{ route('orders.create') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('orders.create') ? 'bg-slate-700 text-white' : '' }}">
             <i class="fas fa-plus w-5 text-center"></i>
             <span>Place Order</span>
+        </a>
+    </div>
+
+    <!-- Offers Section -->
+    <div class="pt-4">
+        <p class="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Offers</p>
+        <a href="{{ route('store.offers.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('store.offers.*') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-tags w-5 text-center"></i>
+            <span>Available Offers</span>
         </a>
     </div>
 

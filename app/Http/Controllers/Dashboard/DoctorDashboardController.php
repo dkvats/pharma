@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\MR\Store;
 use App\Models\Order;
 use App\Models\SpinHistory;
 use App\Services\DoctorTargetService;
@@ -115,13 +116,41 @@ class DoctorDashboardController extends Controller
             ->havingRaw('SUM(order_items.quantity) > ?', [$monthlyCount])
             ->count() + 1;
 
+        // Total doctors active on leaderboard this month
+        $totalDoctorsOnLeaderboard = Order::join('order_items', 'orders.id', '=', 'order_items.order_id')
+            ->select('orders.doctor_id')
+            ->where('orders.status', 'delivered')
+            ->whereNotNull('orders.doctor_id')
+            ->whereMonth('orders.created_at', now()->month)
+            ->whereYear('orders.created_at', now()->year)
+            ->groupBy('orders.doctor_id')
+            ->get()->count();
+
+        // Monthly tier based on this month's product quantity (matches leaderboard badge)
+        $monthlyTier = match(true) {
+            $monthlyCount >= 300 => ['name' => 'Elite',    'badge' => '💎', 'bg_class' => 'bg-purple-100 text-purple-800'],
+            $monthlyCount >= 150 => ['name' => 'Platinum', 'badge' => '🥇', 'bg_class' => 'bg-gray-100 text-gray-800'],
+            $monthlyCount >= 75  => ['name' => 'Gold',     'badge' => '🥈', 'bg_class' => 'bg-yellow-100 text-yellow-800'],
+            $monthlyCount >= 30  => ['name' => 'Silver',   'badge' => '🥉', 'bg_class' => 'bg-gray-100 text-gray-600'],
+            default              => ['name' => 'Bronze',   'badge' => '🏅', 'bg_class' => 'bg-orange-100 text-orange-800'],
+        };
+
         $rankInfo = [
-            'tier' => $tier,
-            'monthly_rank' => $monthlyRank,
+            'tier'          => $tier,           // lifetime tier (used elsewhere)
+            'monthly_tier'  => $monthlyTier,    // monthly tier for rank card display
+            'monthly_rank'  => $monthlyRank,
             'monthly_sales' => $monthlyCount,
+            'total_doctors' => $totalDoctorsOnLeaderboard,
         ];
 
-        return view('dashboard.doctor', compact('stats', 'targetProgress', 'spinStats', 'recent_orders', 'rankInfo'));
+        // Get available stores for doctors
+        $stores = Store::where('status', 'approved')
+            ->with('user')
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        return view('dashboard.doctor', compact('stats', 'targetProgress', 'spinStats', 'recent_orders', 'rankInfo', 'stores'));
     }
 
     /**

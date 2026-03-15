@@ -68,7 +68,8 @@
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium truncate">{{ auth()->user()->name }}</p>
                             <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
-                                @if(auth()->user()->hasRole('Admin')) bg-red-100 text-red-800
+                                @if(auth()->user()->hasRole('Super Admin')) bg-purple-100 text-purple-800
+                                @elseif(auth()->user()->hasRole('Admin')) bg-red-100 text-red-800
                                 @elseif(auth()->user()->hasRole('Sub Admin')) bg-orange-100 text-orange-800
                                 @elseif(auth()->user()->hasRole('Doctor')) bg-blue-100 text-blue-800
                                 @elseif(auth()->user()->hasRole('Store')) bg-yellow-100 text-yellow-800
@@ -83,7 +84,9 @@
 
                 <!-- Navigation -->
                 <nav class="flex-1 overflow-y-auto py-4">
-                    @if(auth()->user()->hasRole('Admin'))
+                    @if(auth()->user()->hasRole('Super Admin'))
+                        @include('layouts.partials.super-admin-sidebar-content')
+                    @elseif(auth()->user()->hasRole('Admin'))
                         @include('layouts.partials.admin-sidebar-content')
                     @elseif(auth()->user()->hasRole('Sub Admin'))
                         @include('layouts.partials.admin-sidebar-content')
@@ -133,7 +136,9 @@
                 </div>
 
                 <nav class="py-4">
-                    @if(auth()->user()->hasRole('Admin'))
+                    @if(auth()->user()->hasRole('Super Admin'))
+                        @include('layouts.partials.super-admin-sidebar-content')
+                    @elseif(auth()->user()->hasRole('Admin'))
                         @include('layouts.partials.admin-sidebar-content')
                     @elseif(auth()->user()->hasRole('Sub Admin'))
                         @include('layouts.partials.admin-sidebar-content')

@@ -26,6 +26,10 @@
     <!-- Stores Section -->
     <div class="pt-4">
         <p class="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Stores</p>
+        <a href="{{ route('admin.stores.create') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.stores.create') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-plus-circle w-5 text-center"></i>
+            <span>Create Store</span>
+        </a>
         <a href="{{ route('admin.stores.approval.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.stores.approval.*') ? 'bg-slate-700 text-white' : '' }}">
             <i class="fas fa-store w-5 text-center"></i>
             <span>Store Approval</span>
@@ -39,9 +43,13 @@
     <!-- Orders Section -->
     <div class="pt-4">
         <p class="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Orders</p>
-        <a href="{{ route('admin.orders.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.orders.*') ? 'bg-slate-700 text-white' : '' }}">
+        <a href="{{ route('admin.orders.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.orders.*') && !request()->routeIs('admin.cancellation-requests.*') ? 'bg-slate-700 text-white' : '' }}">
             <i class="fas fa-shopping-cart w-5 text-center"></i>
             <span>All Orders</span>
+        </a>
+        <a href="{{ route('admin.cancellation-requests.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.cancellation-requests.*') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-times-circle w-5 text-center"></i>
+            <span>Cancellation Requests</span>
         </a>
     </div>
 
@@ -145,6 +153,31 @@
         <a href="{{ route('admin.settings.spin') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.settings.*') ? 'bg-slate-700 text-white' : '' }}">
             <i class="fas fa-cog w-5 text-center"></i>
             <span>Spin Settings</span>
+        </a>
+        <a href="{{ route('admin.site-settings.edit') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.site-settings.*') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-globe w-5 text-center"></i>
+            <span>Website Settings</span>
+        </a>
+    </div>
+
+    <!-- Website CMS -->
+    <div class="pt-4">
+        <p class="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Website CMS</p>
+        <a href="{{ route('admin.homepage-manager.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.homepage-manager.*') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-layer-group w-5 text-center"></i>
+            <span>Homepage Manager</span>
+        </a>
+        <a href="{{ route('admin.homepage-features.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.homepage-features.*') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-star w-5 text-center"></i>
+            <span>Platform Features</span>
+        </a>
+        <a href="{{ route('admin.homepage-nav.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.homepage-nav.*') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-bars w-5 text-center"></i>
+            <span>Navigation</span>
+        </a>
+        <a href="{{ route('admin.media-library.index') }}" class="flex items-center space-x-3 px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white transition-colors {{ request()->routeIs('admin.media-library.*') ? 'bg-slate-700 text-white' : '' }}">
+            <i class="fas fa-images w-5 text-center"></i>
+            <span>Media Library</span>
         </a>
     </div>
 </div>

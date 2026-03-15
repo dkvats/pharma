@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Doctor;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\StoreSale;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -54,6 +55,37 @@ class ReportController extends Controller
             'totalContribution',
             'totalSales',
             'recentOrders'
+        ));
+    }
+
+    /**
+     * Display referral sales — products sold by stores via doctor's prescription.
+     * SECURITY: Only returns records where doctor_id = authenticated doctor.
+     * PRIVACY:  Selects ONLY product name, quantity, store name, and date.
+     *           Price / subtotal / commission columns are intentionally excluded.
+     */
+    public function referralSales(Request $request)
+    {
+        $doctorId = auth()->id();
+
+        $sales = StoreSale::with(['product:id,name', 'store:id,name'])
+            ->where('doctor_id', $doctorId)
+            ->latest()
+            ->paginate(20);
+
+        // Summary counts (no financial data)
+        $totalSales   = StoreSale::where('doctor_id', $doctorId)->count();
+        $totalQty     = StoreSale::where('doctor_id', $doctorId)->sum('quantity');
+        $thisMonthQty = StoreSale::where('doctor_id', $doctorId)
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->sum('quantity');
+
+        return view('doctor.reports.referral-sales', compact(
+            'sales',
+            'totalSales',
+            'totalQty',
+            'thisMonthQty'
         ));
     }
 }

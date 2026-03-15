@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Offer;
 use App\Models\StoreSale;
 use App\Models\StoreStock;
 use Illuminate\Http\Request;
@@ -68,7 +69,12 @@ class StoreDashboardController extends Controller
             ->limit(5)
             ->get();
 
-        return view('dashboard.store', compact('stats', 'recent_orders', 'recent_linked_orders', 'recent_sales'));
+        // Fetch active offers for Store
+        $storeOffers = Offer::forStores()
+            ->active()
+            ->get();
+
+        return view('dashboard.store', compact('stats', 'recent_orders', 'recent_linked_orders', 'recent_sales', 'storeOffers'));
     }
 
     /**

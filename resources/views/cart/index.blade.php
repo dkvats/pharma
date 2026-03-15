@@ -6,7 +6,7 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">My Cart</h1>
-        <a href="{{ route('orders.create') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        <a href="{{ route('products.catalog') }}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
             Continue Shopping
         </a>
     </div>
@@ -121,6 +121,62 @@
                 </table>
             </div>
 
+            <!-- Available Offers (End User Only) -->
+            @if(auth()->user()->hasRole('End User'))
+                @php
+                    $dailyOffer = \App\Models\Offer::active()->forUsers()->where('offer_type', 'daily')->first();
+                    $ongoingOffers = \App\Models\Offer::active()->forUsers()->where('offer_type', 'ongoing')->get();
+                @endphp
+                @if($dailyOffer || $ongoingOffers->count() > 0)
+                <div class="px-6 py-4 bg-gradient-to-r from-blue-50 to-purple-50 border-t border-gray-200">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Available Offers</h3>
+                    <div class="space-y-2">
+                        @if($dailyOffer)
+                        <label class="flex items-center p-3 bg-white rounded-lg border border-orange-200 cursor-pointer hover:bg-orange-50 transition">
+                            <input type="radio" name="selected_offer_id" value="{{ $dailyOffer->id }}" form="checkout-form" class="mr-3" checked onchange="updateCartTotal()">
+                            <div class="flex-1">
+                                <span class="inline-block px-2 py-0.5 bg-orange-500 text-white text-xs rounded">Offer of the Day</span>
+                                <p class="font-medium text-gray-800">{{ $dailyOffer->title }}</p>
+                                <p class="text-sm text-orange-600 font-semibold">{{ $dailyOffer->discount_display }}</p>
+                            </div>
+                        </label>
+                        @endif
+                        @foreach($ongoingOffers as $index => $offer)
+                        <label class="flex items-center p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="selected_offer_id" value="{{ $offer->id }}" form="checkout-form" class="mr-3" {{ !$dailyOffer && $index == 0 ? 'checked' : '' }} onchange="updateCartTotal()">
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-800">{{ $offer->title }}</p>
+                                <p class="text-sm text-green-600 font-semibold">{{ $offer->discount_display }}</p>
+                            </div>
+                        </label>
+                        @endforeach
+                        <label class="flex items-center p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition">
+                            <input type="radio" name="selected_offer_id" value="" form="checkout-form" class="mr-3" onchange="updateCartTotal()">
+                            <span class="text-gray-600">No offer</span>
+                        </label>
+                    </div>
+                </div>
+                @endif
+            @endif
+
+            <!-- Order Summary -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Subtotal:</span>
+                        <span id="cart-subtotal" class="font-medium">₹{{ number_format($cart->total, 2) }}</span>
+                    </div>
+                    <div id="discount-row" class="flex justify-between text-green-600 hidden">
+                        <span>Offer Discount:</span>
+                        <span id="cart-discount" class="font-medium">-₹0.00</span>
+                    </div>
+                    <div class="flex justify-between text-lg font-bold border-t pt-2">
+                        <span>Final Total:</span>
+                        <span id="cart-final-total">₹{{ number_format($cart->total, 2) }}</span>
+                    </div>
+                </div>
+            </div>
+
             <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <form action="{{ route('cart.clear') }}" method="POST">
                     @csrf
@@ -132,15 +188,80 @@
                     <a href="{{ route('products.catalog') }}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
                         Continue Shopping
                     </a>
-                    <form action="{{ route('orders.store') }}" method="POST" class="inline">
+                    <form id="checkout-form" action="{{ route('orders.store') }}" method="POST" class="inline">
                         @csrf
                         <input type="hidden" name="from_cart" value="1">
+                        {{-- Blade-rendered offer_id: pre-selected offer sent directly to backend --}}
+                        @if(auth()->user()->hasRole('End User'))
+                            @php
+                                $selectedOffer = $dailyOffer ?? ($ongoingOffers->first() ?? null);
+                            @endphp
+                            <input type="hidden" id="offer_id_input" name="offer_id" value="{{ $selectedOffer ? $selectedOffer->id : '' }}">
+                        @else
+                            <input type="hidden" id="offer_id_input" name="offer_id" value="">
+                        @endif
                         <button type="submit" class="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 font-medium">
                             Proceed to Checkout
                         </button>
                     </form>
                 </div>
             </div>
+
+            @if(auth()->user()->hasRole('End User'))
+            <script>
+                const cartTotal = {{ $cart->total }};
+                const offers = @json($ongoingOffers ?? collect());
+                const dailyOffer = @json($dailyOffer ?? null);
+                
+                function updateCartTotal() {
+                    const selectedOfferId = document.querySelector('input[name="selected_offer_id"]:checked')?.value;
+                    const offerIdInput = document.getElementById('offer_id_input');
+                    
+                    // Debug: Log the selected offer
+                    console.log('Selected Offer ID:', selectedOfferId);
+                    
+                    let discount = 0;
+                    let selectedOffer = null;
+                    
+                    if (selectedOfferId) {
+                        offerIdInput.value = selectedOfferId;
+                        if (dailyOffer && dailyOffer.id == selectedOfferId) {
+                            selectedOffer = dailyOffer;
+                        } else {
+                            selectedOffer = offers.find(o => o.id == selectedOfferId);
+                        }
+                        
+                        if (selectedOffer) {
+                            if (selectedOffer.discount_type === 'percentage') {
+                                discount = cartTotal * (selectedOffer.discount_value / 100);
+                            } else {
+                                discount = selectedOffer.discount_value;
+                            }
+                            discount = Math.min(discount, cartTotal);
+                        }
+                    } else {
+                        offerIdInput.value = '';
+                    }
+                    
+                    const finalTotal = cartTotal - discount;
+                    
+                    document.getElementById('cart-discount').textContent = '-₹' + discount.toFixed(2);
+                    document.getElementById('cart-final-total').textContent = '₹' + finalTotal.toFixed(2);
+                    
+                    const discountRow = document.getElementById('discount-row');
+                    if (discount > 0) {
+                        discountRow.classList.remove('hidden');
+                    } else {
+                        discountRow.classList.add('hidden');
+                    }
+                }
+                
+                // Initialize on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    updateCartTotal();
+                });
+            </script>
+            @endif
         </div>
     @endif
 </div>

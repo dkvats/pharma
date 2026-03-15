@@ -24,10 +24,16 @@
                     @elseif($order->status == 'approved') bg-blue-500
                     @elseif($order->status == 'delivered') bg-green-500
                     @elseif($order->status == 'rejected') bg-red-500
+                    @elseif($order->status == 'cancelled') bg-gray-600
                     @else bg-gray-500
                     @endif">
                     {{ ucfirst($order->status) }}
                 </span>
+                @if($order->status === 'cancelled')
+                    <p class="text-xs text-gray-500 mt-1">
+                        Cancelled on {{ $order->cancelled_at?->format('d M Y, h:i A') ?? 'N/A' }}
+                    </p>
+                @endif
             </div>
             <div>
                 <p class="text-sm text-gray-600">Date</p>
@@ -68,8 +74,17 @@
         </table>
 
         <div class="text-right mt-4 pt-4 border-t">
-            <p class="text-lg font-bold">
-                Total: ₹{{ number_format($order->total_amount, 2) }}
+            @php
+                $subtotal = $order->total_amount + ($order->discount_amount ?? 0);
+            @endphp
+            <p class="text-gray-600">Subtotal: ₹{{ number_format($subtotal, 2) }}</p>
+            @if($order->discount_amount > 0)
+                <p class="text-green-600">
+                    Discount @if($order->offer)<span class="text-xs">({{ $order->offer->title }})</span>@endif: -₹{{ number_format($order->discount_amount, 2) }}
+                </p>
+            @endif
+            <p class="text-lg font-bold mt-2">
+                Total Payable: ₹{{ number_format($order->total_amount, 2) }}
             </p>
         </div>
 
@@ -78,6 +93,47 @@
             <p class="text-sm text-gray-600">Notes:</p>
             <p>{{ $order->notes }}</p>
         </div>
+        @endif
+
+        {{-- Store Cancellation Actions --}}
+        @if($order->status === 'pending')
+            <div class="mt-6 p-4 bg-red-50 border border-red-200 rounded">
+                <h3 class="font-semibold text-red-800 mb-2">Cancel Order</h3>
+                <p class="text-sm text-red-600 mb-3">
+                    You can cancel this order while it is pending. Stock will be restored.
+                </p>
+                <form method="POST" action="{{ route('store.orders.cancel', $order) }}" 
+                      onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                    @csrf
+                    <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                        Cancel Order
+                    </button>
+                </form>
+            </div>
+        @endif
+
+        @if($order->status === 'approved')
+            <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                @if($pendingRequest)
+                    <h3 class="font-semibold text-yellow-800 mb-2">Cancellation Request Pending</h3>
+                    <p class="text-sm text-yellow-700">
+                        You have submitted a cancellation request for this order. 
+                        Please wait for Admin approval.
+                    </p>
+                    <p class="text-xs text-gray-500 mt-2">
+                        Submitted on {{ $pendingRequest->created_at->format('d M Y, h:i A') }}
+                    </p>
+                @else
+                    <h3 class="font-semibold text-yellow-800 mb-2">Request Cancellation</h3>
+                    <p class="text-sm text-yellow-600 mb-3">
+                        This order is approved. To cancel, you must submit a request to Admin for review.
+                    </p>
+                    <a href="{{ route('store.orders.request-cancel', $order) }}" 
+                       class="inline-block px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">
+                        Request Cancellation
+                    </a>
+                @endif
+            </div>
         @endif
     </div>
 </div>

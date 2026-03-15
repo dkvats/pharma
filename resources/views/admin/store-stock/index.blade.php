@@ -58,7 +58,7 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse($stocks as $stock)
-                    <tr>
+                    <tr class="{{ $stock->available_stock < 10 ? 'bg-red-50' : '' }}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-medium text-gray-900">{{ $stock->store->name ?? 'N/A' }}</div>
                             <div class="text-sm text-gray-500">{{ $stock->store->email ?? '' }}</div>
@@ -74,7 +74,7 @@
                             {{ $stock->sold_quantity }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right">
-                            <span class="text-sm font-bold {{ $stock->available_stock > 0 ? 'text-green-600' : 'text-red-600' }}">
+                            <span class="text-sm font-bold {{ $stock->available_stock <= 0 ? 'text-red-600' : ($stock->available_stock < 10 ? 'text-orange-500' : 'text-green-600') }}">
                                 {{ $stock->available_stock }}
                             </span>
                         </td>
