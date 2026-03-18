@@ -10,6 +10,12 @@ use Illuminate\Http\Request;
 
 class DoctorApprovalController extends Controller
 {
+    public function pending(Request $request)
+    {
+        $request->merge(['status' => 'pending']);
+        return $this->index($request);
+    }
+
     /**
      * Display pending MR doctors for approval
      */
@@ -17,7 +23,7 @@ class DoctorApprovalController extends Controller
     {
         $status = $request->get('status', 'pending');
         
-        $query = Doctor::with(['creator', 'user', 'area', 'city', 'state'])
+        $query = Doctor::with(['creator', 'assignedMr', 'user', 'area', 'city', 'state'])
             ->whereNotNull('user_id'); // Only show doctors with user accounts
         
         if ($status === 'all') {
@@ -35,8 +41,10 @@ class DoctorApprovalController extends Controller
             'rejected' => Doctor::rejected()->count(),
             'inactive' => Doctor::where('status', 'inactive')->count(),
         ];
+
+        $mrs = User::role('MR')->orderBy('name')->get(['id', 'name']);
         
-        return view('admin.doctors.approval.index', compact('doctors', 'stats', 'status'));
+        return view('admin.doctors.approval.index', compact('doctors', 'stats', 'status', 'mrs'));
     }
     
     /**
@@ -45,8 +53,9 @@ class DoctorApprovalController extends Controller
     public function show(Doctor $doctor)
     {
         $doctor->load(['creator', 'user', 'area', 'city', 'district', 'state', 'approver']);
+        $mrs = User::role('MR')->orderBy('name')->get(['id', 'name']);
         
-        return view('admin.doctors.approval.show', compact('doctor'));
+        return view('admin.doctors.approval.show', compact('doctor', 'mrs'));
     }
     
     /**
@@ -54,12 +63,22 @@ class DoctorApprovalController extends Controller
      */
     public function approve(Request $request, Doctor $doctor)
     {
+        $validated = $request->validate([
+            'mr_id' => ['required', 'exists:users,id'],
+        ]);
+
+        $mr = User::role('MR')->find($validated['mr_id']);
+        if (!$mr) {
+            return back()->with('error', 'Please select a valid MR for assignment.');
+        }
+
         if (!$doctor->isPending()) {
             return back()->with('error', 'Only pending doctors can be approved.');
         }
         
         // Update doctor status
         $doctor->update([
+            'assigned_mr_id' => $mr->id,
             'status' => 'approved',
             'is_active' => true,
             'approved_at' => now(),
@@ -70,7 +89,8 @@ class DoctorApprovalController extends Controller
         // Activate linked user account
         if ($doctor->user) {
             $doctor->user->update([
-                'status' => 'active',
+                'status' => 'approved',
+                'role' => 'doctor',
             ]);
         }
         
@@ -97,7 +117,7 @@ class DoctorApprovalController extends Controller
     public function reject(Request $request, Doctor $doctor)
     {
         $validated = $request->validate([
-            'rejection_reason' => ['required', 'string', 'min:10', 'max:500'],
+            'rejection_reason' => ['nullable', 'string', 'min:5', 'max:500'],
         ]);
         
         if (!$doctor->isPending()) {
@@ -108,13 +128,14 @@ class DoctorApprovalController extends Controller
         $doctor->update([
             'status' => 'rejected',
             'is_active' => false,
-            'rejection_reason' => $validated['rejection_reason'],
+            'rejection_reason' => $validated['rejection_reason'] ?? 'Rejected by admin.',
         ]);
         
         // Keep user account inactive
         if ($doctor->user) {
             $doctor->user->update([
-                'status' => 'inactive',
+                'status' => 'rejected',
+                'role' => 'doctor',
             ]);
         }
         
@@ -128,7 +149,7 @@ class DoctorApprovalController extends Controller
         
         // Send rejection notification
         if ($doctor->user) {
-            NotificationService::sendDoctorApproval($doctor->user, 'rejected', $validated['rejection_reason']);
+            NotificationService::sendDoctorApproval($doctor->user, 'rejected', $validated['rejection_reason'] ?? 'Rejected by admin.');
         }
         
         return redirect()->route('admin.doctors.approval.index')
@@ -184,7 +205,7 @@ class DoctorApprovalController extends Controller
         // Reactivate user account
         if ($doctor->user) {
             $doctor->user->update([
-                'status' => 'active',
+                'status' => 'approved',
             ]);
         }
         

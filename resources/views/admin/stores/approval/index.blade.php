@@ -44,6 +44,7 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Registered By</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned MR</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -69,6 +70,9 @@
                         </td>
                         <td class="px-6 py-4">
                             <div class="text-sm text-gray-900">{{ $store->mr?->name ?? 'N/A' }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="text-sm text-gray-900">{{ $store->assignedMr?->name ?? 'Not assigned' }}</div>
                         </td>
                         <td class="px-6 py-4">
                             <div class="text-sm text-gray-900">{{ $store->city ?? $store->city?->name }}, {{ $store->district ?? $store->district?->name }}</div>
@@ -97,14 +101,34 @@
                             {{ $store->created_at->format('M d, Y') }}
                         </td>
                         <td class="px-6 py-4 text-right text-sm font-medium">
-                            <a href="{{ route('admin.stores.approval.show', $store) }}" class="text-primary-600 hover:text-primary-900">
-                                View Details
-                            </a>
+                            @if($store->isPending())
+                                <div class="flex items-center justify-end gap-2">
+                                    <form action="{{ route('admin.stores.approval.approve', $store) }}" method="POST" class="inline-flex items-center gap-2">
+                                        @csrf
+                                        <select name="mr_id" required class="text-sm border-gray-300 rounded-md">
+                                            <option value="">Assign MR</option>
+                                            @foreach($mrs as $mr)
+                                                <option value="{{ $mr->id }}">{{ $mr->name }}</option>
+                                            @endforeach
+                                        </select>
+                                        <button type="submit" class="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700">Approve</button>
+                                    </form>
+                                    <form action="{{ route('admin.stores.approval.reject', $store) }}" method="POST" class="inline-flex items-center gap-2">
+                                        @csrf
+                                        <input type="text" name="rejection_reason" placeholder="Reason (optional)" class="text-sm border-gray-300 rounded-md">
+                                        <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700">Reject</button>
+                                    </form>
+                                </div>
+                            @else
+                                <a href="{{ route('admin.stores.approval.show', $store) }}" class="text-primary-600 hover:text-primary-900">
+                                    View Details
+                                </a>
+                            @endif
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-10 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-10 text-center text-gray-500">
                             <div class="flex flex-col items-center">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="text-gray-300 mb-4">
                                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>

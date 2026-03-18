@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\MR\Doctor;
 use App\Models\MR\DoctorVisit;
 use App\Models\MR\Order;
+use App\Models\MR\Store;
 use Illuminate\Http\Request;
 
 class MRDashboardController extends Controller
@@ -20,6 +21,10 @@ class MRDashboardController extends Controller
             'new_doctors_today' => Doctor::forMR($mrId)->newToday()->count(),
             'orders_today' => Order::forMR($mrId)->today()->count(),
             'total_doctors' => Doctor::forMR($mrId)->count(),
+            'assigned_stores' => Store::where(function ($query) use ($mrId) {
+                $query->where('assigned_mr_id', $mrId)
+                    ->orWhere('mr_id', $mrId);
+            })->count(),
             'upcoming_visits' => DoctorVisit::forMR($mrId)->upcoming()->count(),
             'pending_orders' => Order::forMR($mrId)->byStatus('pending')->count(),
         ];

@@ -37,7 +37,7 @@
                     <li class="flex items-center gap-2"><i class="fas fa-check-circle text-green-300"></i> Spin & Win prizes</li>
                     <li class="flex items-center gap-2"><i class="fas fa-check-circle text-green-300"></i> Access leaderboard rankings</li>
                 </ul>
-                <a href="{{ route('role-requests.create', ['role' => 'Doctor']) }}"
+                <a href="{{ route('doctor.register.form') }}"
                    class="inline-flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-white text-green-700 font-bold text-base rounded-xl hover:bg-green-50 transition-all shadow-xl">
                     <i class="fas fa-user-md"></i>
                     {{ $dc['doctor_button'] ?? 'Register as Doctor' }}
@@ -57,7 +57,7 @@
                     <li class="flex items-center gap-2"><i class="fas fa-check-circle text-green-300"></i> Access exclusive offers</li>
                     <li class="flex items-center gap-2"><i class="fas fa-check-circle text-green-300"></i> Real-time stock tracking</li>
                 </ul>
-                <a href="{{ route('role-requests.create', ['role' => 'Store']) }}"
+                <a href="{{ route('store.register.form') }}"
                    class="inline-flex items-center justify-center gap-2 w-full px-6 py-3.5 bg-green-400 text-white font-bold text-base rounded-xl hover:bg-green-300 transition-all shadow-xl">
                     <i class="fas fa-store"></i>
                     {{ $dc['store_button'] ?? 'Register as Store' }}

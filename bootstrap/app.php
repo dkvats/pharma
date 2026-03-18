@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -14,12 +15,29 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::middleware('web')
                 ->group(base_path('routes/mr.php'));
+
+            Route::fallback(function (Request $request) {
+                $path = trim($request->path(), '/');
+                if ($path === '') {
+                    return app(\App\Http\Controllers\HomeController::class)->index();
+                }
+
+                if ($request->is('api/*')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'API route not found.',
+                    ], 404);
+                }
+
+                return response()->view('errors.404', [], 404);
+            })->middleware('web');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'module' => \App\Http\Middleware\CheckModuleEnabled::class,
+            'approved' => \App\Http\Middleware\EnsureApprovedAccount::class,
         ]);
         
         // TrustProxies MUST be first to correctly identify client IP behind load balancers

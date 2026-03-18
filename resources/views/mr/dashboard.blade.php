@@ -7,7 +7,7 @@
 @section('content')
 <div class="space-y-6">
     <!-- Quick Action Buttons -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <a href="{{ route('mr.doctors.create') }}" class="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg text-center transition">
             <i class="fas fa-user-plus text-2xl mb-2"></i>
             <p class="font-semibold">Register Doctor</p>
@@ -24,10 +24,14 @@
             <i class="fas fa-vial text-2xl mb-2"></i>
             <p class="font-semibold">Add Sample</p>
         </a>
+        <a href="{{ route('mr.stores.index') }}" class="bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-lg text-center transition">
+            <i class="fas fa-store text-2xl mb-2"></i>
+            <p class="font-semibold">View & Update Stores</p>
+        </a>
     </div>
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
         <div class="bg-white rounded-lg shadow p-4">
             <div class="flex items-center">
                 <div class="p-3 rounded-full bg-blue-100 text-blue-600">
@@ -72,6 +76,18 @@
                 <div class="ml-4">
                     <p class="text-gray-500 text-sm">Total Doctors</p>
                     <p class="text-2xl font-bold">{{ $stats['total_doctors'] }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-indigo-100 text-indigo-600">
+                    <i class="fas fa-store text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-gray-500 text-sm">Assigned Stores</p>
+                    <p class="text-2xl font-bold">{{ $stats['assigned_stores'] }}</p>
                 </div>
             </div>
         </div>

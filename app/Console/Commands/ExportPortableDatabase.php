@@ -334,8 +334,8 @@ class ExportPortableDatabase extends Command
         $result = DB::select("SHOW CREATE TABLE `{$table}`");
         $createSql = $result[0]->{'Create Table'};
         
-        // Extract foreign key constraints
-        preg_match_all('/CONSTRAINT `([^`]+)` FOREIGN KEY \(`([^)]+)`\) REFERENCES `([^`]+)` \(`([^)]+)`\)( ON DELETE (\w+))?( ON UPDATE (\w+))?/i', $createSql, $matches, PREG_SET_ORDER);
+        // Extract foreign key constraints - capture ON DELETE/UPDATE with multiple words (e.g., "SET NULL")
+        preg_match_all('/CONSTRAINT `([^`]+)` FOREIGN KEY \(`([^)]+)`\) REFERENCES `([^`]+)` \(`([^)]+)`\)( ON DELETE ([^\s]+( NULL)?))?( ON UPDATE ([^\s]+( NULL)?))?/i', $createSql, $matches, PREG_SET_ORDER);
         
         if (empty($matches)) {
             return;
@@ -348,8 +348,8 @@ class ExportPortableDatabase extends Command
             $column = $match[2];
             $refTable = $match[3];
             $refColumn = $match[4];
-            $onDelete = isset($match[6]) ? ' ON DELETE ' . $match[6] : '';
-            $onUpdate = isset($match[8]) ? ' ON UPDATE ' . $match[8] : '';
+            $onDelete = isset($match[5]) ? $match[5] : ''; // match[5] contains " ON DELETE SET NULL" or " ON DELETE CASCADE"
+            $onUpdate = isset($match[8]) ? $match[8] : ''; // match[8] contains " ON UPDATE ..."
             
             $sql = "ALTER TABLE `{$table}` ADD CONSTRAINT `{$constraintName}` ";
             $sql .= "FOREIGN KEY (`{$column}`) REFERENCES `{$refTable}` (`{$refColumn}`)";

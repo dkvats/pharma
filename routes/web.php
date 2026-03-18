@@ -17,16 +17,22 @@ use App\Http\Controllers\Doctor\ReportController as DoctorReportController;
 use App\Http\Controllers\Doctor\TargetController as DoctorTargetController;
 use App\Http\Controllers\OrderController as UserOrderController;
 use App\Http\Controllers\PrescriptionController;
+use App\Http\Controllers\Admin\SupplierController;
+use App\Http\Controllers\Admin\PurchaseController;
+use App\Http\Controllers\Admin\InvoiceController;
+use App\Http\Controllers\Admin\InventoryReportController;
+use App\Http\Controllers\Admin\BatchAllocationController;
+use App\Http\Controllers\Admin\ExpiredBatchController;
 use App\Http\Controllers\Admin\ReferralAuditController;
-use App\Http\Controllers\Api\PincodeController as ApiPincodeController;
 use App\Http\Controllers\Admin\SalesReportController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\TerritoryController;
 use App\Http\Controllers\Admin\DoctorApprovalController;
 use App\Http\Controllers\Admin\StoreApprovalController;
+use App\Http\Controllers\Admin\StoreUpdateApprovalController;
 use App\Http\Controllers\MR\MRStoreController;
+use App\Http\Controllers\PublicRegistrationController;
 use App\Http\Controllers\RoleRequestController;
-use Illuminate\Support\Facades\RateLimiter;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,34 +42,132 @@ use Illuminate\Support\Facades\RateLimiter;
 
 Route::get('/', [\App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
-// Rate limiter configuration
-RateLimiter::for('login', function ($request) {
-    return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->ip());
+Route::middleware('guest')->group(function () {
+    Route::get('/doctor/register', [PublicRegistrationController::class, 'showDoctorForm'])->name('doctor.register.form');
+    Route::post('/doctor/register', [PublicRegistrationController::class, 'registerDoctor'])->name('doctor.register.store');
+
+    Route::get('/store/register', [PublicRegistrationController::class, 'showStoreForm'])->name('store.register.form');
+    Route::post('/store/register', [PublicRegistrationController::class, 'registerStore'])->name('store.register.store');
 });
 
-RateLimiter::for('api', function ($request) {
-    return \Illuminate\Cache\RateLimiting\Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
-});
+/*
+|--------------------------------------------------------------------------
+| Shared Hosting Ops Routes (Temporary)
+|--------------------------------------------------------------------------
+*/
 
-// Prescription access rate limiting (medical data protection)
-RateLimiter::for('prescription', function ($request) {
-    return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
-});
+Route::get('/_ops/cache-clear', function (\Illuminate\Http\Request $request) {
+    $token = (string) env('CACHE_CLEAR_TOKEN', '');
 
-// Order creation rate limiting
-RateLimiter::for('orders', function ($request) {
-    return \Illuminate\Cache\RateLimiting\Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
-});
+    if ($token === '' || ! hash_equals($token, (string) $request->query('token', ''))) {
+        abort(404);
+    }
 
-// Admin action rate limiting
-RateLimiter::for('admin', function ($request) {
-    return \Illuminate\Cache\RateLimiting\Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
-});
+    $allowedIpsRaw = (string) env('CACHE_CLEAR_ALLOWED_IPS', '');
+    if ($allowedIpsRaw !== '') {
+        $allowedIps = collect(explode(',', $allowedIpsRaw))
+            ->map(fn ($ip) => trim($ip))
+            ->filter()
+            ->values();
 
-// Spin action rate limiting (prevent duplicate spins)
-RateLimiter::for('spin', function ($request) {
-    return \Illuminate\Cache\RateLimiting\Limit::perMinute(2)->by($request->user()?->id ?: $request->ip());
-});
+        if ($allowedIps->isNotEmpty() && ! $allowedIps->contains($request->ip())) {
+            abort(403);
+        }
+    }
+
+    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+
+    return response('Cache cleared successfully. Remove this route after use.', 200)
+        ->header('Content-Type', 'text/plain');
+})->name('ops.cache-clear');
+
+Route::get('/_ops/purge-dummy-data', function (\Illuminate\Http\Request $request) {
+    $token = (string) env('PURGE_DATA_TOKEN', '');
+
+    if ($token === '' || ! hash_equals($token, (string) $request->query('token', ''))) {
+        abort(404);
+    }
+
+    if ((string) $request->query('confirm', '') !== 'yes') {
+        return response('Confirmation required. Use ?token=YOUR_TOKEN&confirm=yes', 400)
+            ->header('Content-Type', 'text/plain');
+    }
+
+    $connection = \Illuminate\Support\Facades\DB::connection();
+    $driver = $connection->getDriverName();
+
+    $preserveTables = [
+        'users',
+        'roles',
+        'permissions',
+        'model_has_roles',
+        'model_has_permissions',
+        'role_has_permissions',
+        'migrations',
+        'failed_jobs',
+        'job_batches',
+        'password_reset_tokens',
+        'sessions',
+        'cache',
+        'cache_locks',
+    ];
+
+    if ($driver === 'mysql') {
+        $rows = \Illuminate\Support\Facades\DB::select('SHOW TABLES');
+        $allTables = array_map(
+            fn ($row) => (string) array_values((array) $row)[0],
+            $rows
+        );
+    } elseif ($driver === 'pgsql') {
+        $rows = \Illuminate\Support\Facades\DB::select("SELECT tablename FROM pg_tables WHERE schemaname = 'public'");
+        $allTables = array_map(fn ($row) => (string) $row->tablename, $rows);
+    } elseif ($driver === 'sqlite') {
+        $rows = \Illuminate\Support\Facades\DB::select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        $allTables = array_map(fn ($row) => (string) $row->name, $rows);
+    } else {
+        return response('Unsupported database driver for purge operation.', 500)
+            ->header('Content-Type', 'text/plain');
+    }
+
+    $tablesToPurge = array_values(array_filter(
+        $allTables,
+        fn ($table) => ! in_array($table, $preserveTables, true)
+    ));
+
+    if (empty($tablesToPurge)) {
+        return response('No tables to purge. Users and roles already preserved.', 200)
+            ->header('Content-Type', 'text/plain');
+    }
+
+    try {
+        if ($driver === 'mysql') {
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        } elseif ($driver === 'pgsql') {
+            \Illuminate\Support\Facades\DB::statement("SET session_replication_role = 'replica'");
+        } elseif ($driver === 'sqlite') {
+            \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = OFF');
+        }
+
+        foreach ($tablesToPurge as $table) {
+            if ($driver === 'pgsql') {
+                \Illuminate\Support\Facades\DB::statement('TRUNCATE TABLE "' . str_replace('"', '""', $table) . '" RESTART IDENTITY CASCADE');
+            } else {
+                \Illuminate\Support\Facades\DB::table($table)->truncate();
+            }
+        }
+    } finally {
+        if ($driver === 'mysql') {
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        } elseif ($driver === 'pgsql') {
+            \Illuminate\Support\Facades\DB::statement("SET session_replication_role = 'origin'");
+        } elseif ($driver === 'sqlite') {
+            \Illuminate\Support\Facades\DB::statement('PRAGMA foreign_keys = ON');
+        }
+    }
+
+    return response('Purged dummy data from ' . count($tablesToPurge) . ' tables. Users and roles were preserved.', 200)
+        ->header('Content-Type', 'text/plain');
+})->name('ops.purge-dummy-data');
 
 /*
 |--------------------------------------------------------------------------
@@ -79,15 +183,6 @@ Route::middleware(['guest', 'throttle:login'])->group(function () {
 });
 
 Route::post('logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
-
-/*
-|--------------------------------------------------------------------------
-| Public API Routes (Accessible without role restrictions)
-|--------------------------------------------------------------------------
-*/
-
-// PIN Code Lookup API (for MR Doctor Registration and other forms)
-Route::get('/api/pincode/{pin}', [ApiPincodeController::class, 'lookup'])->name('api.pincode.lookup');
 
 /*
 |--------------------------------------------------------------------------
@@ -107,10 +202,7 @@ Route::middleware(['auth'])->group(function () {
 
 // Admin Routes (accessible by Admin and Super Admin)
 Route::middleware(['auth', 'role:Admin|Super Admin'])->prefix('admin')->name('admin.')->group(function () {
-    
-    // Admin Create Store (uses same form/controller as MR)
-    Route::get('/stores/create', [MRStoreController::class, 'create'])->name('stores.create');
-    
+
     // Old Website Settings (kept for backward compat)
     Route::get('site-settings', [\App\Http\Controllers\Admin\SiteSettingController::class, 'edit'])->name('site-settings.edit');
     Route::put('site-settings', [\App\Http\Controllers\Admin\SiteSettingController::class, 'update'])->name('site-settings.update');
@@ -174,6 +266,48 @@ Route::middleware(['auth', 'role:Admin|Super Admin'])->prefix('admin')->name('ad
     // Products Management
     Route::resource('products', ProductController::class);
     Route::patch('products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])->name('products.toggle-status');
+    // Batch management (nested under product)
+    Route::post('products/{product}/batches', [ProductController::class, 'storeBatch'])->name('products.batches.store');
+    Route::delete('products/{product}/batches/{batch}', [ProductController::class, 'destroyBatch'])->name('products.batches.destroy');
+    
+    // Inventory Reports
+    Route::get('inventory-reports', [InventoryReportController::class, 'index'])->name('inventory-reports.index');
+    Route::get('inventory-reports/expiring', [InventoryReportController::class, 'expiringProducts'])->name('inventory-reports.expiring');
+    Route::get('inventory-reports/expired', [InventoryReportController::class, 'expiredProducts'])->name('inventory-reports.expired');
+    Route::get('inventory-reports/low-stock', [InventoryReportController::class, 'lowStockProducts'])->name('inventory-reports.low-stock');
+    Route::get('inventory-reports/batch-inventory', [InventoryReportController::class, 'batchInventory'])->name('inventory-reports.batch-inventory');
+    Route::get('inventory-reports/valuation', [InventoryReportController::class, 'stockValuation'])->name('inventory-reports.valuation');
+    
+    // Suppliers Management
+    Route::resource('suppliers', SupplierController::class)->except(['show']);
+    
+    // Purchase Orders & GRN
+    Route::get('purchases', [PurchaseController::class, 'index'])->name('purchases.index');
+    Route::get('purchases/create', [PurchaseController::class, 'create'])->name('purchases.create');
+    Route::post('purchases', [PurchaseController::class, 'store'])->name('purchases.store');
+    Route::get('purchases/{purchase}', [PurchaseController::class, 'show'])->name('purchases.show');
+    Route::get('purchases/{purchase}/receive', [PurchaseController::class, 'receiveForm'])->name('purchases.receive.form');
+    Route::post('purchases/{purchase}/receive', [PurchaseController::class, 'receive'])->name('purchases.receive');
+    Route::patch('purchases/{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('purchases.cancel');
+
+    // GST Invoices
+    Route::get('invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+    Route::get('invoices/{invoice}', [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::get('invoices/{invoice}/view', [InvoiceController::class, 'view'])->name('invoices.view');
+    Route::get('invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('invoices.download');
+    Route::post('invoices/{invoice}/regenerate', [InvoiceController::class, 'regenerate'])->name('invoices.regenerate');
+    Route::patch('invoices/{invoice}/cancel', [InvoiceController::class, 'cancel'])->name('invoices.cancel');
+
+    // Expired Batch Return/Disposal Management
+    Route::get('inventory/expired-batches', [ExpiredBatchController::class, 'index'])->name('expired-batches.index');
+    Route::post('inventory/expired-batches/{expiredBatch}/mark-returned', [ExpiredBatchController::class, 'markReturned'])->name('expired-batches.mark-returned');
+    Route::post('inventory/expired-batches/{expiredBatch}/mark-disposed', [ExpiredBatchController::class, 'markDisposed'])->name('expired-batches.mark-disposed');
+    Route::post('inventory/expired-batches/bulk-update', [ExpiredBatchController::class, 'bulkUpdate'])->name('expired-batches.bulk-update');
+    Route::get('inventory/expired-batches/download', [ExpiredBatchController::class, 'download'])->name('expired-batches.download');
+
+    // Store Batch Allocation
+    Route::post('batches/{batch}/allocate', [BatchAllocationController::class, 'store'])->name('batches.allocate');
+    Route::delete('allocations/{allocation}', [BatchAllocationController::class, 'destroy'])->name('allocations.destroy');
     
     // Orders Management
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
@@ -253,7 +387,10 @@ Route::middleware(['auth', 'role:Admin|Super Admin'])->prefix('admin')->name('ad
     
     // MR Doctor Approval Workflow
     Route::prefix('doctors')->name('doctors.')->group(function () {
+        Route::get('pending', [DoctorApprovalController::class, 'pending'])->name('pending');
         Route::get('approval', [DoctorApprovalController::class, 'index'])->name('approval.index');
+        Route::post('{doctor}/approve', [DoctorApprovalController::class, 'approve'])->name('approve');
+        Route::post('{doctor}/reject', [DoctorApprovalController::class, 'reject'])->name('reject');
         Route::get('approval/{doctor}', [DoctorApprovalController::class, 'show'])->name('approval.show');
         Route::post('approval/{doctor}/approve', [DoctorApprovalController::class, 'approve'])->name('approval.approve');
         Route::post('approval/{doctor}/reject', [DoctorApprovalController::class, 'reject'])->name('approval.reject');
@@ -263,7 +400,10 @@ Route::middleware(['auth', 'role:Admin|Super Admin'])->prefix('admin')->name('ad
     
     // MR Store Approval Workflow
     Route::prefix('stores')->name('stores.')->group(function () {
+        Route::get('pending', [StoreApprovalController::class, 'pending'])->name('pending');
         Route::get('approval', [StoreApprovalController::class, 'index'])->name('approval.index');
+        Route::post('{store}/approve', [StoreApprovalController::class, 'approve'])->name('approve');
+        Route::post('{store}/reject', [StoreApprovalController::class, 'reject'])->name('reject');
         Route::get('approval/{store}', [StoreApprovalController::class, 'show'])->name('approval.show');
         Route::post('approval/{store}/approve', [StoreApprovalController::class, 'approve'])->name('approval.approve');
         Route::post('approval/{store}/reject', [StoreApprovalController::class, 'reject'])->name('approval.reject');
@@ -273,6 +413,23 @@ Route::middleware(['auth', 'role:Admin|Super Admin'])->prefix('admin')->name('ad
         // Admin Create Store (uses same form/controller as MR)
         Route::get('create', [MRStoreController::class, 'create'])->name('create');
         Route::post('store', [MRStoreController::class, 'store'])->name('store');
+        Route::get('get-districts/{stateId}', [MRStoreController::class, 'getDistricts'])->name('get-districts');
+        Route::get('get-cities/{districtId}', [MRStoreController::class, 'getCities'])->name('get-cities');
+        Route::get('get-areas/{cityId}', [MRStoreController::class, 'getAreas'])->name('get-areas');
+        
+        // Index for admin to view all stores
+        Route::get('', [MRStoreController::class, 'index'])->name('index');
+    });
+    
+    // Store Update Request Approval Workflow
+    Route::prefix('store-updates')->name('store-updates.')->group(function () {
+        Route::get('', [StoreUpdateApprovalController::class, 'index'])->name('index');
+        Route::get('{updateRequest}', [StoreUpdateApprovalController::class, 'show'])->name('show');
+        Route::post('{updateRequest}/approve', [StoreUpdateApprovalController::class, 'approve'])->name('approve');
+        Route::post('{updateRequest}/reject', [StoreUpdateApprovalController::class, 'reject'])->name('reject');
+        Route::get('{updateRequest}/comparison', [StoreUpdateApprovalController::class, 'comparison'])->name('comparison');
+        Route::get('history/approved', [StoreUpdateApprovalController::class, 'approvedHistory'])->name('approved');
+        Route::get('history/rejected', [StoreUpdateApprovalController::class, 'rejectedHistory'])->name('rejected');
     });
     
     // Territory Management
@@ -312,7 +469,7 @@ Route::middleware(['auth'])->prefix('leaderboard')->name('leaderboard.')->group(
 });
 
 // Doctor Routes
-Route::middleware(['auth', 'role:Doctor'])->prefix('doctor')->name('doctor.')->group(function () {
+Route::middleware(['auth', 'role:Doctor', 'approved'])->prefix('doctor')->name('doctor.')->group(function () {
     Route::get('/dashboard', [DoctorDashboardController::class, 'index'])->name('dashboard');
     Route::get('/orders/export', [DoctorDashboardController::class, 'exportOrders'])->name('orders.export');
     
@@ -336,7 +493,7 @@ Route::middleware(['auth', 'role:Doctor'])->prefix('doctor')->name('doctor.')->g
 });
 
 // Store Routes
-Route::middleware(['auth', 'role:Store'])->prefix('store')->name('store.')->group(function () {
+Route::middleware(['auth', 'role:Store', 'approved'])->prefix('store')->name('store.')->group(function () {
     Route::get('/dashboard', [StoreDashboardController::class, 'index'])->name('dashboard');
     
     // Stock Management

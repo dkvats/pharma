@@ -137,6 +137,15 @@
         @if($store->isPending())
             <form action="{{ route('admin.stores.approval.approve', $store) }}" method="POST" class="inline">
                 @csrf
+                <div class="mb-3">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Assign MR <span class="text-red-500">*</span></label>
+                    <select name="mr_id" required class="w-full md:w-72 px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="">Select MR</option>
+                        @foreach($mrs as $mr)
+                            <option value="{{ $mr->id }}" {{ old('mr_id', $store->assigned_mr_id ?? $store->mr_id) == $mr->id ? 'selected' : '' }}>{{ $mr->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <button type="submit" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
                         <polyline points="20 6 9 17 4 12"></polyline>

@@ -77,7 +77,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Specialization</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MR</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned MR</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -100,11 +100,11 @@
                                 <span class="text-sm text-gray-900">{{ $doctor->specialization ?? 'N/A' }}</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="text-sm text-gray-900">{{ $doctor->city->name ?? '' }}</div>
-                                <div class="text-sm text-gray-500">{{ $doctor->district->name ?? '' }}</div>
+                                <div class="text-sm text-gray-900">{{ $doctor->city->name ?? $doctor->city ?? '' }}</div>
+                                <div class="text-sm text-gray-500">{{ $doctor->district->name ?? $doctor->district ?? '' }}</div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="text-sm text-gray-900">{{ $doctor->creator->name ?? 'N/A' }}</span>
+                                <span class="text-sm text-gray-900">{{ $doctor->assignedMr->name ?? 'Not assigned' }}</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
@@ -119,14 +119,21 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center space-x-2">
                                     @if($doctor->status === 'pending')
-                                        <form method="POST" action="{{ route('admin.doctors.approval.approve', $doctor->id) }}" class="inline">
+                                        <form method="POST" action="{{ route('admin.doctors.approval.approve', $doctor->id) }}" class="inline-flex items-center gap-2">
                                             @csrf
+                                            <select name="mr_id" required class="text-sm border-gray-300 rounded-md">
+                                                <option value="">Assign MR</option>
+                                                @foreach($mrs as $mr)
+                                                    <option value="{{ $mr->id }}">{{ $mr->name }}</option>
+                                                @endforeach
+                                            </select>
                                             <button type="submit" class="inline-flex items-center px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600" onclick="return confirm('Approve this doctor?')">
                                                 <i class="fas fa-check mr-1"></i>Approve
                                             </button>
                                         </form>
-                                        <form method="POST" action="{{ route('admin.doctors.approval.reject', $doctor->id) }}" class="inline">
+                                        <form method="POST" action="{{ route('admin.doctors.approval.reject', $doctor->id) }}" class="inline-flex items-center gap-2">
                                             @csrf
+                                            <input type="text" name="rejection_reason" placeholder="Reason (optional)" class="text-sm border-gray-300 rounded-md">
                                             <button type="submit" class="inline-flex items-center px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600" onclick="return confirm('Reject this doctor?')">
                                                 <i class="fas fa-times mr-1"></i>Reject
                                             </button>

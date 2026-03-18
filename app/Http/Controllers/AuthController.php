@@ -34,8 +34,24 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
 
+            $user = Auth::user();
+
+            if ($user->hasAnyRole(['Doctor', 'Store']) && $user->status !== 'approved') {
+                Auth::logout();
+
+                $message = match ($user->status) {
+                    'pending' => 'Your account is pending admin approval.',
+                    'rejected' => 'Your registration request was rejected. Please contact admin support.',
+                    default => 'Your account is not approved yet.',
+                };
+
+                return back()->withErrors([
+                    'email' => $message,
+                ]);
+            }
+
             // Check if user is active
-            if (!Auth::user()->isActive()) {
+            if (!$user->isActive()) {
                 Auth::logout();
                 return back()->withErrors([
                     'email' => 'Your account has been deactivated.',
@@ -43,7 +59,7 @@ class AuthController extends Controller
             }
 
             // Update login tracking
-            Auth::user()->update([
+            $user->update([
                 'last_login_at' => now(),
                 'last_login_ip' => $request->ip(),
             ]);

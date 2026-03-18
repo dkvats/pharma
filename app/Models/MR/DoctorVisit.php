@@ -3,6 +3,7 @@
 namespace App\Models\MR;
 
 use App\Models\User;
+use App\Models\MRProductPromotion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +40,11 @@ class DoctorVisit extends Model
     public function mr(): BelongsTo
     {
         return $this->belongsTo(User::class, 'mr_id');
+    }
+
+    public function promotions()
+    {
+        return $this->hasMany(MRProductPromotion::class, 'visit_id');
     }
 
     // Scopes

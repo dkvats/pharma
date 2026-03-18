@@ -27,6 +27,7 @@ class User extends Authenticatable
         'code',
         'unique_code',
         'status',
+        'role',
         'phone',
         'address',
         'city',
@@ -153,7 +154,7 @@ class User extends Authenticatable
      */
     public function isActive(): bool
     {
-        return $this->status === 'active';
+        return in_array($this->status, ['active', 'approved'], true);
     }
 
     /**

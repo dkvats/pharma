@@ -11,12 +11,18 @@ class OrderItem extends Model
         'product_id',
         'quantity',
         'price',
+        'gst_percent',
+        'gst_amount',
+        'total_with_gst',
         'commission',
         'subtotal',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'gst_percent' => 'decimal:2',
+        'gst_amount' => 'decimal:2',
+        'total_with_gst' => 'decimal:2',
         'commission' => 'decimal:2',
         'subtotal' => 'decimal:2',
     ];

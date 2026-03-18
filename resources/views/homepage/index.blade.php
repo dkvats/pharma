@@ -11,7 +11,7 @@
         <link rel="icon" type="image/x-icon" href="{{ asset('storage/' . $settings->favicon) }}">
     @endif
 
-    <script src="https://cdn.tailwindcss.com"></script>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
@@ -187,6 +187,14 @@
         </div>
     </div>
 </nav>
+
+@if(session('success'))
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20">
+        <div class="mb-4 rounded-lg bg-green-50 border border-green-200 p-4 text-green-800">
+            {{ session('success') }}
+        </div>
+    </div>
+@endif
 
 {{-- ===================== IMAGE SLIDER (top of page, above all sections) ===================== --}}
 @include('homepage.sections.slider', [

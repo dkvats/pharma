@@ -62,6 +62,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch / Expiry</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -90,12 +91,63 @@
                             <span class="text-sm text-gray-900">₹{{ number_format($product->commission, 2) }}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                {{ $product->stock_status == 'out_of_stock' ? 'bg-red-100 text-red-800' : '' }}
-                                {{ $product->stock_status == 'low_stock' ? 'bg-yellow-100 text-yellow-800' : '' }}
-                                {{ $product->stock_status == 'in_stock' ? 'bg-green-100 text-green-800' : '' }}">
-                                {{ $product->stock }}
-                            </span>
+                            <div class="flex flex-col gap-1">
+                                @php
+                                    $activeBatches = $product->batches->filter(fn($b) => $b->expiry_date->isFuture());
+                                    $batchTotal    = $activeBatches->sum('quantity');
+                                    $displayStock  = $product->batches->count() ? $batchTotal : $product->stock;
+                                @endphp
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                    {{ $displayStock <= 0 ? 'bg-red-100 text-red-800' : ($displayStock <= $product->low_stock_alert ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800') }}">
+                                    {{ $displayStock }}
+                                </span>
+                                @if($displayStock > 0 && $displayStock <= ($product->low_stock_alert ?? 0))
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-semibold text-center">
+                                        LOW STOCK
+                                    </span>
+                                @endif
+                                @if($displayStock <= 0)
+                                    <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-xs font-semibold text-center">
+                                        OUT OF STOCK
+                                    </span>
+                                @endif
+                            </div>
+                        </td>
+                        {{-- Batch / Expiry Column --}}
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            @php
+                                $hasBatches = $product->batches->count() > 0;
+                                $expired    = $product->batches->filter(fn($b) => $b->expiry_date->isPast());
+                                $expiring30 = $product->batches->filter(fn($b) => !$b->expiry_date->isPast() && $b->expiry_date->diffInDays(now()) <= 30);
+                                $expiring60 = $product->batches->filter(fn($b) => !$b->expiry_date->isPast() && $b->expiry_date->diffInDays(now()) <= 60 && $b->expiry_date->diffInDays(now()) > 30);
+                            @endphp
+                            @if(!$hasBatches)
+                                <span class="text-xs text-gray-400">No batches</span>
+                            @else
+                                <div class="flex flex-col gap-1">
+                                    <span class="text-xs text-gray-600">{{ $product->batches->count() }} batch(es)</span>
+                                    @if($expired->count())
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-800">
+                                            Expired ({{ $expired->count() }})
+                                        </span>
+                                    @endif
+                                    @if($expiring30->count())
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                            &lt;30d ({{ $expiring30->count() }})
+                                        </span>
+                                    @endif
+                                    @if($expiring60->count())
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+                                            &lt;60d ({{ $expiring60->count() }})
+                                        </span>
+                                    @endif
+                                    @if(!$expired->count() && !$expiring30->count() && !$expiring60->count())
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">
+                                            Good
+                                        </span>
+                                    @endif
+                                </div>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 

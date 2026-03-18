@@ -4,6 +4,7 @@ namespace App\Models\MR;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Store extends Model
 {
@@ -11,13 +12,22 @@ class Store extends Model
 
     protected $fillable = [
         'mr_id',
+        'assigned_mr_id',
         'user_id',
         'store_name',
         'owner_name',
         'store_code',
         'phone',
+        'alt_phone',
         'email',
+        'aadhaar',
+        'owner_photo',
+        'store_photo',
         'address',
+        'gst_no',
+        'drug_license_no',
+        'license_expiry',
+        'pan_no',
         'pincode',
         'state_id',
         'district_id',
@@ -27,6 +37,10 @@ class Store extends Model
         'district',
         'city',
         'area',
+        'store_type',
+        'default_discount',
+        'credit_limit',
+        'payment_terms',
         'status',
         'rejection_reason',
         'approved_at',
@@ -43,6 +57,14 @@ class Store extends Model
     public function mr(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'mr_id');
+    }
+
+    /**
+     * MR assigned by admin for ongoing handling
+     */
+    public function assignedMr(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'assigned_mr_id');
     }
 
     /**
@@ -91,6 +113,22 @@ class Store extends Model
     public function area(): BelongsTo
     {
         return $this->belongsTo(Area::class);
+    }
+
+    /**
+     * Update requests for this store
+     */
+    public function updateRequests(): HasMany
+    {
+        return $this->hasMany(StoreUpdateRequest::class, 'store_id');
+    }
+
+    /**
+     * Pending update requests for this store
+     */
+    public function pendingUpdateRequests(): HasMany
+    {
+        return $this->updateRequests()->where('status', 'pending');
     }
 
     /**

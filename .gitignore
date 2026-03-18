@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+.qoder/
+merge_*.php
+merge_*.txt
+merge_*.json

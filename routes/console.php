@@ -13,3 +13,6 @@ Schedule::command('logs:cleanup')->daily();
 
 // Schedule database backup to run daily at 2 AM
 Schedule::command('db:backup')->dailyAt('02:00');
+
+// Schedule expired batch check to run daily at midnight
+Schedule::command('inventory:check-expired')->dailyAt('00:30');

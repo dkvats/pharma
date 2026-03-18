@@ -34,9 +34,10 @@ class SecurityHeadersMiddleware
 
         // Content Security Policy - allowing CDN resources
         $csp = "default-src 'self'; ";
-        $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com; ";
-        $csp .= "style-src 'self' 'unsafe-inline' https://fonts.bunny.net; ";
-        $csp .= "font-src 'self' https://fonts.bunny.net; ";
+        $csp .= "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; ";
+        $csp .= "style-src 'self' 'unsafe-inline' https://fonts.bunny.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; ";
+        $csp .= "style-src-elem 'self' 'unsafe-inline' https://fonts.bunny.net https://fonts.googleapis.com https://cdnjs.cloudflare.com; ";
+        $csp .= "font-src 'self' data: https://fonts.bunny.net https://fonts.gstatic.com https://cdnjs.cloudflare.com; ";
         $csp .= "img-src 'self' data: blob:; ";
         $csp .= "connect-src 'self'; ";
         $csp .= "media-src 'self'; ";

@@ -83,6 +83,32 @@
                     <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
+
+            <!-- Promoted Products (structured) -->
+            @php
+                $alreadyPromoted = old('promoted_products', $visit->promotions->pluck('product_id')->toArray());
+                $existingNotes   = old('promotion_notes', $visit->promotions->first()?->notes ?? '');
+            @endphp
+            <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                <label class="block text-sm font-semibold text-indigo-800 mb-2">Promoted Products</label>
+                <p class="text-xs text-indigo-600 mb-3">Select products you actively promoted to this doctor during the visit.</p>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto">
+                    @foreach($products as $product)
+                    <label class="flex items-center gap-2 text-sm p-2 rounded hover:bg-indigo-100 cursor-pointer">
+                        <input type="checkbox" name="promoted_products[]" value="{{ $product->id }}"
+                            {{ in_array($product->id, $alreadyPromoted) ? 'checked' : '' }}
+                            class="rounded border-gray-300 text-indigo-600">
+                        <span class="text-gray-800">{{ $product->name }}</span>
+                    </label>
+                    @endforeach
+                </div>
+                <div class="mt-3">
+                    <label for="promotion_notes" class="block text-xs font-medium text-indigo-700 mb-1">Promotion Notes</label>
+                    <textarea id="promotion_notes" name="promotion_notes" rows="2"
+                        class="w-full px-3 py-1.5 text-sm border border-indigo-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        placeholder="e.g., Doctor interested in new formulation...">{{ $existingNotes }}</textarea>
+                </div>
+            </div>
             
             <!-- Remarks -->
             <div>

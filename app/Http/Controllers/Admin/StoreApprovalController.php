@@ -10,6 +10,12 @@ use Illuminate\Http\Request;
 
 class StoreApprovalController extends Controller
 {
+    public function pending(Request $request)
+    {
+        $request->merge(['status' => 'pending']);
+        return $this->index($request);
+    }
+
     /**
      * List pending stores for approval
      */
@@ -17,7 +23,7 @@ class StoreApprovalController extends Controller
     {
         $status = $request->get('status', 'pending');
         
-        $stores = Store::with(['mr', 'user'])
+        $stores = Store::with(['mr', 'assignedMr', 'user'])
             ->when($status, function ($query) use ($status) {
                 $query->where('status', $status);
             })
@@ -31,7 +37,9 @@ class StoreApprovalController extends Controller
             'inactive' => Store::where('status', 'inactive')->count(),
         ];
 
-        return view('admin.stores.approval.index', compact('stores', 'counts', 'status'));
+        $mrs = \App\Models\User::role('MR')->orderBy('name')->get(['id', 'name']);
+
+        return view('admin.stores.approval.index', compact('stores', 'counts', 'status', 'mrs'));
     }
 
     /**
@@ -39,9 +47,11 @@ class StoreApprovalController extends Controller
      */
     public function show(Store $store)
     {
-        $store->load(['mr', 'user', 'approver']);
+        $store->load(['mr', 'assignedMr', 'user', 'approver']);
 
-        return view('admin.stores.approval.show', compact('store'));
+        $mrs = \App\Models\User::role('MR')->orderBy('name')->get(['id', 'name']);
+
+        return view('admin.stores.approval.show', compact('store', 'mrs'));
     }
 
     /**
@@ -49,28 +59,23 @@ class StoreApprovalController extends Controller
      */
     public function approve(Request $request, Store $store)
     {
+        $validated = $request->validate([
+            'mr_id' => ['required', 'exists:users,id'],
+        ]);
+
+        $mr = \App\Models\User::role('MR')->find($validated['mr_id']);
+        if (!$mr) {
+            return back()->with('error', 'Please select a valid MR for assignment.');
+        }
+
         if (!$store->isPending()) {
             return redirect()->back()->with('error', 'Store is not in pending status.');
         }
 
-        // STEP 2 — Auto-assign MR based on store's area if mr_id is not set
-        if (empty($store->mr_id) && !empty($store->area_id)) {
-            $mr = $this->findMRForArea($store->area_id);
-
-            // Fallback: assign first available MR if none found for area
-            if (!$mr) {
-                $mr = \App\Models\User::role('MR')->first();
-            }
-
-            if ($mr) {
-                $store->mr_id = $mr->id;
-            }
-            // If no MR found at all, mr_id remains NULL (Admin can assign manually later)
-        }
-
         // Update store status
         $store->update([
-            'mr_id' => $store->mr_id,
+            'mr_id' => $mr->id,
+            'assigned_mr_id' => $mr->id,
             'status' => 'approved',
             'approved_at' => now(),
             'approved_by' => auth()->id(),
@@ -80,7 +85,8 @@ class StoreApprovalController extends Controller
         // Activate user account
         if ($store->user) {
             $store->user->update([
-                'status' => 'active',
+                'status' => 'approved',
+                'role' => 'store',
             ]);
             
             // Send approval notification
@@ -97,7 +103,7 @@ class StoreApprovalController extends Controller
     public function reject(Request $request, Store $store)
     {
         $request->validate([
-            'rejection_reason' => 'required|string|max:500',
+            'rejection_reason' => 'nullable|string|max:500',
         ]);
 
         if (!$store->isPending()) {
@@ -107,18 +113,19 @@ class StoreApprovalController extends Controller
         // Update store status
         $store->update([
             'status' => 'rejected',
-            'rejection_reason' => $request->rejection_reason,
+            'rejection_reason' => $request->rejection_reason ?: 'Rejected by admin.',
             'approved_by' => auth()->id(),
         ]);
 
         // Keep user account inactive
         if ($store->user) {
             $store->user->update([
-                'status' => 'inactive',
+                'status' => 'rejected',
+                'role' => 'store',
             ]);
             
             // Send rejection notification
-            NotificationService::sendStoreApproval($store->user, 'rejected', $request->rejection_reason);
+            NotificationService::sendStoreApproval($store->user, 'rejected', $request->rejection_reason ?: 'Rejected by admin.');
         }
 
         return redirect()->route('admin.stores.approval.index')
@@ -165,7 +172,7 @@ class StoreApprovalController extends Controller
         // Reactivate user account
         if ($store->user) {
             $store->user->update([
-                'status' => 'active',
+                'status' => 'approved',
             ]);
         }
 

@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserOfferUsage;
 use App\Services\ActivityLogService;
 use App\Services\DoctorTargetService;
+use App\Services\InvoiceService;
 use App\Services\NotificationService;
 use App\Services\SaleClassificationService;
 use App\Services\SystemSettingService;
@@ -300,19 +301,39 @@ class OrderController extends Controller
             // Create order items and update stock using LOCKED products
             foreach ($validated['items'] as $item) {
                 // Use the already-locked product instance
-                $product = $lockedProducts[$item['product_id']];
-                
+                $product = $lockedProducts[$item['product_id']];                
+                $qty          = $item['quantity'];
+                $itemPrice    = $product->price;
+                $gstPercent   = (float) ($product->gst_percent ?? 0);
+                $gstAmount    = round($itemPrice * $qty * $gstPercent / 100, 2);
+                $totalWithGst = round($itemPrice * $qty + $gstAmount, 2);
+
                 OrderItem::create([
-                    'order_id' => $order->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'price' => $product->price,
-                    'commission' => $product->commission,
-                    'subtotal' => $product->price * $item['quantity'],
+                    'order_id'      => $order->id,
+                    'product_id'    => $item['product_id'],
+                    'quantity'      => $qty,
+                    'price'         => $itemPrice,
+                    'gst_percent'   => $gstPercent,
+                    'gst_amount'    => $gstAmount,
+                    'total_with_gst'=> $totalWithGst,
+                    'commission'    => $product->commission,
+                    'subtotal'      => $itemPrice * $qty,
                 ]);
 
-                // Decrement stock using locked product (guaranteed consistent)
-                $product->decrement('stock', $item['quantity']);
+                // FEFO batch deduction: deduct from nearest-expiry batch first.
+                // Falls back to direct stock decrement if no batches configured.
+                $hasBatches = $product->batches()
+                    ->whereDate('expiry_date', '>=', now())
+                    ->where('quantity', '>', 0)
+                    ->exists();
+
+                if ($hasBatches) {
+                    $product->deductBatchStockFefo($qty);
+                    // syncStockFromBatches() is called inside deductBatchStockFefo()
+                } else {
+                    // Legacy fallback: decrement products.stock directly
+                    $product->decrement('stock', $qty);
+                }
             }
 
             // Note: Target will be updated when order is approved by admin
@@ -350,8 +371,12 @@ class OrderController extends Controller
             // Send order confirmation notification
             NotificationService::sendOrderConfirmation($order, $user);
 
+            // Generate invoice automatically
+            $invoiceService = new InvoiceService();
+            $invoice = $invoiceService->generateFromOrder($order);
+
             return redirect()->route('orders.show', $order)
-                ->with('success', 'Order placed successfully! Order #' . $order->order_number);
+                ->with('success', 'Order placed successfully! Order #' . $order->order_number . '. Invoice #' . $invoice->invoice_number . ' generated.');
         });
     }
 

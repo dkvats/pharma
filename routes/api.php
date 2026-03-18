@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\TestController;
+use App\Http\Controllers\Api\PincodeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,3 +26,6 @@ Route::get('/test', function () {
 
 // Status endpoint using controller
 Route::get('/status', [TestController::class, 'index']);
+
+// PIN Code Lookup API
+Route::get('/pincode/{pin}', [PincodeController::class, 'lookup'])->name('api.pincode.lookup');

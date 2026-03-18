@@ -54,6 +54,7 @@ class MRDoctorController extends Controller
 
         $validated['doctor_code'] = 'DOC-' . strtoupper(Str::random(8));
         $validated['created_by'] = auth()->id();
+        $validated['assigned_mr_id'] = auth()->id();
         $validated['status'] = 'pending'; // Default status for new doctors
         $validated['is_active'] = false; // Inactive until approved
 
@@ -66,8 +67,8 @@ class MRDoctorController extends Controller
         // Sync doctor_code to user's unique_code for referral matching
         $user->update(['unique_code' => $validated['doctor_code']]);
         
-        // Deactivate user account until approved
-        $user->update(['status' => 'inactive']);
+        // Keep account pending until approved
+        $user->update(['status' => 'pending', 'role' => 'doctor']);
 
         return redirect()->route('mr.doctors.index')
             ->with('success', 'Doctor registered successfully. Awaiting admin approval. Login account created with email: ' . $user->email);
@@ -108,7 +109,8 @@ class MRDoctorController extends Controller
             'username' => $username,
             'password' => Hash::make($password),
             'phone' => $doctorData['mobile'] ?? $doctorData['phone'] ?? null,
-            'status' => 'active',
+            'status' => 'pending',
+            'role' => 'doctor',
             'created_by' => $doctorData['created_by'] ?? auth()->id(),
         ]);
 
@@ -245,7 +247,7 @@ class MRDoctorController extends Controller
 
     private function authorizeAccess(Doctor $doctor)
     {
-        if ($doctor->created_by !== auth()->id()) {
+        if ($doctor->created_by !== auth()->id() && $doctor->assigned_mr_id !== auth()->id()) {
             abort(403, 'Unauthorized access.');
         }
     }

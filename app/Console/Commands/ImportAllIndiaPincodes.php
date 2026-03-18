@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\File;
 
 class ImportAllIndiaPincodes extends Command
 {
-    protected $signature = 'pincodes:import-all {--file=.qoder/All-India-Pincode-Directory-master/all-india-pincode-json-array.json : Path to the JSON file}';
+    protected $signature = 'pincodes:import-all {--file= : Path to the JSON file (absolute or relative to project root)}';
     protected $description = 'Import all India PIN codes from JSON file';
 
     public function handle(): int

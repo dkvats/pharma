@@ -87,6 +87,11 @@ class Order extends Model
         return $this->belongsTo(Offer::class);
     }
 
+    public function invoice()
+    {
+        return $this->hasOne(Invoice::class);
+    }
+
     public function getStatusLabelAttribute(): string
     {
         return match($this->status) {

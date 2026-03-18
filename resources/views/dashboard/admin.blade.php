@@ -145,6 +145,146 @@
         </div>
     </div>
 
+    <!-- Inventory Alert Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <!-- Expiring Soon -->
+        <a href="{{ route('admin.inventory-reports.expiring') }}" class="block bg-yellow-50 border border-yellow-200 rounded-2xl p-5 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-yellow-700">Expiring in 30 Days</p>
+                    <p class="text-3xl font-bold text-yellow-800 mt-1">{{ $stats['expiring_soon'] ?? 0 }}</p>
+                    <p class="text-xs text-yellow-600 mt-1">batches</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-200 rounded-xl flex items-center justify-center">
+                    <i data-lucide="clock" class="w-6 h-6 text-yellow-700"></i>
+                </div>
+            </div>
+        </a>
+
+        <!-- Expired Batches -->
+        <a href="{{ route('admin.inventory-reports.expired') }}" class="block bg-red-50 border border-red-200 rounded-2xl p-5 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-red-700">Expired Batches</p>
+                    <p class="text-3xl font-bold text-red-800 mt-1">{{ $stats['expired_batches'] ?? 0 }}</p>
+                    <p class="text-xs text-red-600 mt-1">need removal</p>
+                </div>
+                <div class="w-12 h-12 bg-red-200 rounded-xl flex items-center justify-center">
+                    <i data-lucide="alert-triangle" class="w-6 h-6 text-red-700"></i>
+                </div>
+            </div>
+        </a>
+
+        <!-- Out of Stock -->
+        <a href="{{ route('admin.inventory-reports.low-stock') }}" class="block bg-orange-50 border border-orange-200 rounded-2xl p-5 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-orange-700">Low / Out of Stock</p>
+                    <p class="text-3xl font-bold text-orange-800 mt-1">{{ $stats['low_stock_products'] ?? 0 }}</p>
+                    <p class="text-xs text-orange-600 mt-1">products</p>
+                </div>
+                <div class="w-12 h-12 bg-orange-200 rounded-xl flex items-center justify-center">
+                    <i data-lucide="package" class="w-6 h-6 text-orange-700"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Inventory Distribution Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+        <!-- Warehouse Stock -->
+        <div class="bg-blue-50 border border-blue-200 rounded-2xl p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-blue-700">Warehouse Stock</p>
+                    <p class="text-3xl font-bold text-blue-800 mt-1">{{ number_format($stats['warehouse_stock'] ?? 0) }}</p>
+                    <p class="text-xs text-blue-600 mt-1">active batch units</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-200 rounded-xl flex items-center justify-center">
+                    <i data-lucide="warehouse" class="w-6 h-6 text-blue-700"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Store Stock -->
+        <div class="bg-teal-50 border border-teal-200 rounded-2xl p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-teal-700">Store Stock</p>
+                    <p class="text-3xl font-bold text-teal-800 mt-1">{{ number_format($stats['store_stock'] ?? 0) }}</p>
+                    <p class="text-xs text-teal-600 mt-1">allocated units</p>
+                </div>
+                <div class="w-12 h-12 bg-teal-200 rounded-xl flex items-center justify-center">
+                    <i data-lucide="store" class="w-6 h-6 text-teal-700"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Returns -->
+        <a href="{{ route('admin.expired-batches.index') }}" class="block bg-yellow-50 border border-yellow-200 rounded-2xl p-5 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-yellow-700">Pending Returns</p>
+                    <p class="text-3xl font-bold text-yellow-800 mt-1">{{ $stats['pending_returns'] ?? 0 }}</p>
+                    <p class="text-xs text-yellow-600 mt-1">expired batches</p>
+                </div>
+                <div class="w-12 h-12 bg-yellow-200 rounded-xl flex items-center justify-center">
+                    <i data-lucide="undo" class="w-6 h-6 text-yellow-700"></i>
+                </div>
+            </div>
+        </a>
+
+        <!-- Out of Stock -->
+        <a href="{{ route('admin.inventory-reports.low-stock') }}" class="block bg-red-50 border border-red-200 rounded-2xl p-5 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-red-700">Out of Stock</p>
+                    <p class="text-3xl font-bold text-red-800 mt-1">{{ $stats['out_of_stock'] ?? 0 }}</p>
+                    <p class="text-xs text-red-600 mt-1">products</p>
+                </div>
+                <div class="w-12 h-12 bg-red-200 rounded-xl flex items-center justify-center">
+                    <i data-lucide="package-x" class="w-6 h-6 text-red-700"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    @if($expiring_batches->isNotEmpty())
+    <!-- Expiring Soon Quick View -->
+    <div class="mt-6 bg-white rounded-2xl shadow-card border border-yellow-100 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Batches Expiring Soon</h3>
+            <a href="{{ route('admin.inventory-reports.expiring') }}" class="text-sm text-yellow-600 hover:text-yellow-700 font-medium">View All &rarr;</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-100">
+                        <th class="text-left py-2 pr-4 font-medium text-gray-500">Product</th>
+                        <th class="text-left py-2 pr-4 font-medium text-gray-500">Batch</th>
+                        <th class="text-left py-2 pr-4 font-medium text-gray-500">Qty</th>
+                        <th class="text-left py-2 font-medium text-gray-500">Expiry</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                    @foreach($expiring_batches as $batch)
+                    <tr>
+                        <td class="py-2 pr-4 font-medium text-gray-800">{{ $batch->product->name }}</td>
+                        <td class="py-2 pr-4 text-gray-600">{{ $batch->batch_number }}</td>
+                        <td class="py-2 pr-4 text-gray-600">{{ $batch->quantity }}</td>
+                        <td class="py-2">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ $batch->getExpiryBadgeClass() }}">
+                                {{ $batch->expiry_date->format('d M Y') }}
+                            </span>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
+
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
         <!-- Recent Orders -->

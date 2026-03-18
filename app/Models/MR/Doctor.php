@@ -20,11 +20,16 @@ class Doctor extends Model
         'name',
         'specialization',
         'clinic_name',
+        'license_no',
         'address',
+        'pincode',
         'area_id',
         'city_id',
+        'city',
         'district_id',
+        'district',
         'state_id',
+        'state',
         'mobile',
         'email',
         'phone',
@@ -34,6 +39,7 @@ class Doctor extends Model
         'ifsc',
         'account_no',
         'created_by',
+        'assigned_mr_id',
         'is_active',
         'status',
         'rejection_reason',
@@ -72,6 +78,11 @@ class Doctor extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function assignedMr(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_mr_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
@@ -100,7 +111,10 @@ class Doctor extends Model
     // Scopes
     public function scopeForMR($query, $mrId)
     {
-        return $query->where('created_by', $mrId);
+        return $query->where(function ($q) use ($mrId) {
+            $q->where('assigned_mr_id', $mrId)
+              ->orWhere('created_by', $mrId);
+        });
     }
 
     public function scopeActive($query)

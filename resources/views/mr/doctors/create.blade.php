@@ -71,7 +71,17 @@
                             Lookup
                         </button>
                     </div>
-                    <p id="pin_status" class="text-sm mt-2"></p>
+                    <!-- Status message with loader, success, warning, error states -->
+                    <div id="pin_status" class="text-sm mt-2"></div>
+
+                    <!-- Manual fallback - shown when PIN not found -->
+                    <div id="manual_fallback" class="hidden mt-3 p-3 bg-amber-50 border border-amber-300 rounded-lg">
+                        <p class="text-amber-800 text-sm font-medium mb-2">📍 PIN not found. Verify manually.</p>
+                        <button type="button" onclick="enableManualEntry()"
+                            class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg">
+                            👉 Verify PIN Manually
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -159,6 +169,7 @@
 // PIN Code lookup via API
 function lookupPinCode(pin) {
     const statusEl = document.getElementById('pin_status');
+    const fallbackEl = document.getElementById('manual_fallback');
     
     // Trim PIN input
     pin = (pin || '').trim();
@@ -166,10 +177,13 @@ function lookupPinCode(pin) {
     // Validate PIN (6 digits)
     if (!pin || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
         statusEl.innerHTML = '<span class="text-orange-600">Please enter a valid 6-digit PIN code</span>';
+        fallbackEl.classList.add('hidden');
         return;
     }
     
-    statusEl.innerHTML = '<span class="text-blue-600">Looking up...</span>';
+    // Show loader
+    statusEl.innerHTML = '<span class="text-blue-600 flex items-center gap-1"><svg class="animate-spin h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Looking up PIN...</span>';
+    fallbackEl.classList.add('hidden');
     
     // Call API (public endpoint - no role restriction)
     fetch(`/api/pincode/${pin}`)
@@ -185,8 +199,9 @@ function lookupPinCode(pin) {
                 const territory = location.territory;
                 
                 if (territory) {
-                    // Territory auto-synced from PIN - auto-fill all dropdowns
-                    statusEl.innerHTML = '<span class="text-green-600">✓ Location found: ' + location.post_office + ', ' + location.state + '</span>';
+                    // ✅ Full territory auto-synced from PIN
+                    statusEl.innerHTML = '<span class="text-green-600">✅ Location found: ' + location.post_office + ', ' + location.district + ', ' + location.state + '</span>';
+                    fallbackEl.classList.add('hidden');
                     
                     // Auto-fill state
                     addOptionIfNotExists('state_id', territory.state_id, location.state);
@@ -202,19 +217,31 @@ function lookupPinCode(pin) {
                         postOffice: location.post_office
                     };
                 } else {
-                    // PIN found but territory sync failed
-                    statusEl.innerHTML = '<span class="text-orange-600">⚠ Location found, but territory sync failed. Please select manually.</span>';
+                    // ⚠ PIN found but territory sync failed - partial data
+                    statusEl.innerHTML = '<span class="text-orange-600">⚠️ Partial data: ' + (location.state || '') + (location.district ? ', ' + location.district : '') + '. Please complete location manually.</span>';
+                    fallbackEl.classList.remove('hidden');
                 }
             } else {
-                // Show backend error message or default
+                // ❌ PIN not found
                 const message = result.message || 'PIN code not found';
-                statusEl.innerHTML = '<span class="text-red-600">✗ ' + message + '. Please enter location manually.</span>';
+                statusEl.innerHTML = '<span class="text-red-600">❌ ' + message + '</span>';
+                fallbackEl.classList.remove('hidden');
             }
         })
         .catch(error => {
             console.error('PIN lookup error:', error);
-            statusEl.innerHTML = '<span class="text-orange-600">⚠ Unable to lookup PIN. Please enter location manually.</span>';
+            statusEl.innerHTML = '<span class="text-orange-600">⚠️ Unable to lookup PIN. Please enter location manually.</span>';
+            fallbackEl.classList.remove('hidden');
         });
+}
+
+// Enable manual entry: guide user through dropdowns
+function enableManualEntry() {
+    const fallbackEl = document.getElementById('manual_fallback');
+    const pin = document.getElementById('pin_code').value.trim();
+    
+    document.getElementById('pin_status').innerHTML = '<span class="text-blue-700">📝 Manual mode: Select your State, District, City, and Area from the dropdowns below.</span>';
+    fallbackEl.classList.add('hidden');
 }
 
 // Check if an option with given text exists in dropdown
